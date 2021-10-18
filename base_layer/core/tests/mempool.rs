@@ -21,11 +21,6 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // use crate::helpers::database::create_store;
-use std::{ops::Deref, sync::Arc, time::Duration};
-
-use tari_crypto::{keys::PublicKey as PublicKeyTrait, script};
-use tempfile::tempdir;
-
 use helpers::{
     block_builders::{
         chain_block,
@@ -39,6 +34,7 @@ use helpers::{
     sample_blockchains::{create_new_blockchain, create_new_blockchain_with_constants},
 };
 use randomx_rs::RandomXFlag;
+use std::{convert::TryFrom, ops::Deref, sync::Arc, time::Duration};
 use tari_common::configuration::Network;
 use tari_common_types::types::{Commitment, PrivateKey, PublicKey, Signature};
 use tari_comms_dht::domain_message::OutboundDomainMessage;
@@ -64,8 +60,10 @@ use tari_core::{
     txn_schema,
     validation::transaction_validators::{TxConsensusValidator, TxInputAndMaturityValidator},
 };
+use tari_crypto::{keys::PublicKey as PublicKeyTrait, script};
 use tari_p2p::{services::liveness::LivenessConfig, tari_message::TariMessageType};
 use tari_test_utils::async_assert_eventually;
+use tempfile::tempdir;
 #[allow(dead_code)]
 mod helpers;
 
@@ -888,7 +886,10 @@ async fn receive_and_propagate_transaction() {
         .outbound_message_service
         .send_direct(
             bob_node.node_identity.public_key().clone(),
-            OutboundDomainMessage::new(TariMessageType::NewTransaction, proto::types::Transaction::from(tx)),
+            OutboundDomainMessage::new(
+                TariMessageType::NewTransaction,
+                proto::types::Transaction::try_from(tx).unwrap(),
+            ),
         )
         .await
         .unwrap();
@@ -896,7 +897,10 @@ async fn receive_and_propagate_transaction() {
         .outbound_message_service
         .send_direct(
             carol_node.node_identity.public_key().clone(),
-            OutboundDomainMessage::new(TariMessageType::NewTransaction, proto::types::Transaction::from(orphan)),
+            OutboundDomainMessage::new(
+                TariMessageType::NewTransaction,
+                proto::types::Transaction::try_from(orphan).unwrap(),
+            ),
         )
         .await
         .unwrap();

@@ -1439,7 +1439,7 @@ fn finalize_tx_with_incorrect_pubkey() {
 
     let finalized_transaction_message = proto::TransactionFinalizedMessage {
         tx_id: recipient_reply.tx_id,
-        transaction: Some(tx.clone().into()),
+        transaction: Some(tx.clone().try_into().unwrap()),
     };
 
     runtime
@@ -1576,7 +1576,8 @@ fn finalize_tx_with_missing_output() {
                 PrivateKey::random(&mut OsRng),
                 PrivateKey::random(&mut OsRng),
             )
-            .into(),
+            .try_into()
+            .unwrap(),
         ),
     };
 
@@ -2939,7 +2940,7 @@ fn test_restarting_transaction_protocols() {
 
     let finalized_transaction_message = proto::TransactionFinalizedMessage {
         tx_id,
-        transaction: Some(tx.into()),
+        transaction: Some(tx.try_into().unwrap()),
     };
 
     runtime

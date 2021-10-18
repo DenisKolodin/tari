@@ -42,7 +42,7 @@ use crate::{
     tari_utilities::convert::try_convert_all,
 };
 use std::{
-    convert::TryInto,
+    convert::{TryFrom, TryInto},
     iter::{FromIterator, Iterator},
 };
 
@@ -92,41 +92,51 @@ impl TryInto<ci::NodeCommsResponse> for ProtoNodeCommsResponse {
     }
 }
 
-impl From<ci::NodeCommsResponse> for ProtoNodeCommsResponse {
-    fn from(response: ci::NodeCommsResponse) -> Self {
+impl TryFrom<ci::NodeCommsResponse> for ProtoNodeCommsResponse {
+    type Error = String;
+
+    fn try_from(response: ci::NodeCommsResponse) -> Result<Self, Self::Error> {
         use ci::NodeCommsResponse::*;
         match response {
-            ChainMetadata(chain_metadata) => ProtoNodeCommsResponse::ChainMetadata(chain_metadata.into()),
+            ChainMetadata(chain_metadata) => Ok(ProtoNodeCommsResponse::ChainMetadata(chain_metadata.into())),
             TransactionKernels(kernels) => {
                 let kernels = kernels.into_iter().map(Into::into).collect();
-                ProtoNodeCommsResponse::TransactionKernels(kernels)
+                Ok(ProtoNodeCommsResponse::TransactionKernels(kernels))
             },
             BlockHeaders(headers) => {
                 let block_headers = headers.into_iter().map(Into::into).collect();
-                ProtoNodeCommsResponse::BlockHeaders(block_headers)
+                Ok(ProtoNodeCommsResponse::BlockHeaders(block_headers))
             },
-            BlockHeader(header) => ProtoNodeCommsResponse::BlockHeader(header.into()),
-            HistoricalBlock(block) => ProtoNodeCommsResponse::HistoricalBlock((*block).into()),
+            BlockHeader(header) => Ok(ProtoNodeCommsResponse::BlockHeader(header.into())),
+            HistoricalBlock(block) => Ok(ProtoNodeCommsResponse::HistoricalBlock((*block).try_into()?)),
             FetchHeadersAfterResponse(headers) => {
                 let block_headers = headers.into_iter().map(Into::into).collect();
-                ProtoNodeCommsResponse::FetchHeadersAfterResponse(block_headers)
+                Ok(ProtoNodeCommsResponse::FetchHeadersAfterResponse(block_headers))
             },
             TransactionOutputs(outputs) => {
                 let outputs = outputs.into_iter().map(Into::into).collect();
-                ProtoNodeCommsResponse::TransactionOutputs(outputs)
+                Ok(ProtoNodeCommsResponse::TransactionOutputs(outputs))
             },
             HistoricalBlocks(historical_blocks) => {
-                let historical_blocks = historical_blocks.into_iter().map(Into::into).collect();
-                ProtoNodeCommsResponse::HistoricalBlocks(historical_blocks)
+                let historical_blocks = historical_blocks
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<core_proto_types::HistoricalBlock>, _>>()?
+                    .into_iter()
+                    .map(Into::into)
+                    .collect();
+                Ok(ProtoNodeCommsResponse::HistoricalBlocks(historical_blocks))
             },
-            NewBlockTemplate(block_template) => ProtoNodeCommsResponse::NewBlockTemplate(block_template.into()),
-            NewBlock { success, error, block } => ProtoNodeCommsResponse::NewBlock(ProtoNewBlockResponse {
+            NewBlockTemplate(block_template) => {
+                Ok(ProtoNodeCommsResponse::NewBlockTemplate(block_template.try_into()?))
+            },
+            NewBlock { success, error, block } => Ok(ProtoNodeCommsResponse::NewBlock(ProtoNewBlockResponse {
                 success,
                 error: error.unwrap_or_else(|| "".to_string()),
-                block: block.map(|b| b.into()),
-            }),
-            TargetDifficulty(difficulty) => ProtoNodeCommsResponse::TargetDifficulty(difficulty.as_u64()),
-            MmrNodes(added, deleted) => ProtoNodeCommsResponse::MmrNodes(ProtoMmrNodes { added, deleted }),
+                block: block.map(|b| b.try_into()).transpose()?,
+            })),
+            TargetDifficulty(difficulty) => Ok(ProtoNodeCommsResponse::TargetDifficulty(difficulty.as_u64())),
+            MmrNodes(added, deleted) => Ok(ProtoNodeCommsResponse::MmrNodes(ProtoMmrNodes { added, deleted })),
         }
     }
 }
@@ -153,11 +163,13 @@ impl TryInto<Option<BlockHeader>> for base_node_proto::BlockHeaderResponse {
     }
 }
 
-impl From<Option<HistoricalBlock>> for base_node_proto::HistoricalBlockResponse {
-    fn from(v: Option<HistoricalBlock>) -> Self {
-        Self {
-            block: v.map(Into::into),
-        }
+impl TryFrom<Option<HistoricalBlock>> for base_node_proto::HistoricalBlockResponse {
+    type Error = String;
+
+    fn try_from(v: Option<HistoricalBlock>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            block: v.map(TryInto::try_into).transpose()?,
+        })
     }
 }
 
