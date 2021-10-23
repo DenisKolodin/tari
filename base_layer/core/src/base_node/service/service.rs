@@ -400,7 +400,7 @@ async fn handle_incoming_request<B: BlockchainBackend + 'static>(
 
     let message = proto::BaseNodeServiceResponse {
         request_key: inner_msg.request_key,
-        response: Some(response.into()),
+        response: Some(response.try_into().map_err(BaseNodeServiceError::InvalidResponse)?),
         is_synced,
     };
 
@@ -501,7 +501,7 @@ async fn handle_outbound_request(
     let request_key = generate_request_key(&mut OsRng);
     let service_request = proto::BaseNodeServiceRequest {
         request_key,
-        request: Some(request.into()),
+        request: Some(request.try_into().map_err(CommsInterfaceError::InternalError)?),
     };
 
     let mut send_msg_params = SendMessageParams::new();

@@ -31,12 +31,14 @@ use crate::{
         db_transaction::{DbKey, DbTransaction, DbValue},
         error::ChainStorageError,
         pruned_output::PrunedOutput,
+        utxo_mined_info::UtxoMinedInfo,
         BlockAddResult,
         BlockchainBackend,
         ChainBlock,
         ChainHeader,
         DbBasicStats,
         DbTotalSizeStats,
+        DeletedBitmap,
         HistoricalBlock,
         HorizonData,
         MmrTree,
@@ -48,7 +50,7 @@ use crate::{
     consensus::{chain_strength_comparer::ChainStrengthComparer, ConsensusConstants, ConsensusManager},
     proof_of_work::{monero_rx::MoneroPowData, PowAlgorithm, TargetDifficultyWindow},
     tari_utilities::epoch_time::EpochTime,
-    transactions::transaction::TransactionKernel,
+    transactions::transaction::{TransactionInput, TransactionKernel},
     validation::{
         helpers::calc_median_timestamp,
         DifficultyCalculator,
@@ -293,7 +295,7 @@ where B: BlockchainBackend
     // Fetch the utxo
     pub fn fetch_utxo(&self, hash: HashOutput) -> Result<Option<PrunedOutput>, ChainStorageError> {
         let db = self.db_read_access()?;
-        Ok(db.fetch_output(&hash)?.map(|(out, _index, _)| out))
+        Ok(db.fetch_output(&hash)?.map(|mined_info| mined_info.output))
     }
 
     pub fn fetch_unspent_output_by_commitment(
@@ -314,7 +316,22 @@ where B: BlockchainBackend
         let mut result = Vec::with_capacity(hashes.len());
         for hash in hashes {
             let output = db.fetch_output(&hash)?;
-            result.push(output.map(|(out, mmr_index, _)| (out, deleted.bitmap().contains(mmr_index))));
+            result
+                .push(output.map(|mined_info| (mined_info.output, deleted.bitmap().contains(mined_info.mmr_position))));
+        }
+        Ok(result)
+    }
+
+    pub fn fetch_utxos_and_mined_info(
+        &self,
+        hashes: Vec<HashOutput>,
+    ) -> Result<Vec<Option<UtxoMinedInfo>>, ChainStorageError> {
+        let db = self.db_read_access()?;
+
+        let mut result = Vec::with_capacity(hashes.len());
+        for hash in hashes {
+            let output = db.fetch_output(&hash)?;
+            result.push(output);
         }
         Ok(result)
     }
@@ -647,21 +664,67 @@ where B: BlockchainBackend
 
     pub fn prepare_new_block(&self, template: NewBlockTemplate) -> Result<Block, ChainStorageError> {
         let NewBlockTemplate { header, mut body, .. } = template;
+        if header.height == 0 {
+            return Err(ChainStorageError::InvalidArguments {
+                func: "prepare_new_block",
+                arg: "template",
+                message: "Invalid height for NewBlockTemplate: must be greater than 0".to_string(),
+            });
+        }
+
         body.sort(header.version);
         let mut header = BlockHeader::from(header);
         // If someone advanced the median timestamp such that the local time is less than the median timestamp, we need
         // to increase the timestamp to be greater than the median timestamp
-        let height = header.height - 1;
+        let prev_block_height = header.height - 1;
         let min_height = header.height.saturating_sub(
             self.consensus_manager
                 .consensus_constants(header.height)
                 .get_median_timestamp_count() as u64,
         );
+
         let db = self.db_read_access()?;
-        let timestamps = fetch_headers(&*db, min_height, height)?
+        let tip_header = db.fetch_tip_header()?;
+        if header.height != tip_header.height() + 1 {
+            return Err(ChainStorageError::InvalidArguments {
+                func: "prepare_new_block",
+                arg: "template",
+                message: format!(
+                    "Expected new block template height to be {} but was {}",
+                    tip_header.height() + 1,
+                    header.height
+                ),
+            });
+        }
+        if header.prev_hash != *tip_header.hash() {
+            return Err(ChainStorageError::InvalidArguments {
+                func: "prepare_new_block",
+                arg: "template",
+                message: format!(
+                    "Expected new block template previous hash to be set to the current tip hash ({}) but was {}",
+                    tip_header.hash().to_hex(),
+                    header.prev_hash.to_hex()
+                ),
+            });
+        }
+
+        let timestamps = fetch_headers(&*db, min_height, prev_block_height)?
             .iter()
             .map(|h| h.timestamp)
             .collect::<Vec<_>>();
+        if timestamps.is_empty() {
+            return Err(ChainStorageError::DataInconsistencyDetected {
+                function: "prepare_new_block",
+                details: format!(
+                    "No timestamps were returned within heights {} - {} by the database despite the tip header height \
+                     being {}",
+                    min_height,
+                    prev_block_height,
+                    tip_header.height()
+                ),
+            });
+        }
+
         let median_timestamp = calc_median_timestamp(&timestamps);
         if median_timestamp > header.timestamp {
             header.timestamp = median_timestamp.increase(1);
@@ -929,6 +992,23 @@ where B: BlockchainBackend
         ))
     }
 
+    pub fn fetch_deleted_bitmap_at_tip(&self) -> Result<DeletedBitmap, ChainStorageError> {
+        let db = self.db_read_access()?;
+        db.fetch_deleted_bitmap()
+    }
+
+    pub fn fetch_header_hash_by_deleted_mmr_positions(
+        &self,
+        mmr_positions: Vec<u32>,
+    ) -> Result<Vec<Option<(u64, HashOutput)>>, ChainStorageError> {
+        if mmr_positions.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let db = self.db_read_access()?;
+        db.fetch_header_hash_by_deleted_mmr_positions(mmr_positions)
+    }
+
     pub fn get_stats(&self) -> Result<DbBasicStats, ChainStorageError> {
         let lock = self.db_read_access()?;
         lock.get_stats()
@@ -1005,7 +1085,7 @@ pub fn calculate_mmr_roots<T: BlockchainBackend>(db: &T, block: &Block) -> Resul
     }
 
     for input in body.inputs().iter() {
-        input_mmr.push(input.hash())?;
+        input_mmr.push(input.canonical_hash()?)?;
 
         // Search the DB for the output leaf index so that it can be marked as spent/deleted.
         // If the output hash is not found, check the current output_mmr. This allows zero-conf transactions
@@ -1222,7 +1302,36 @@ fn fetch_block<T: BlockchainBackend>(db: &T, height: u64) -> Result<HistoricalBl
     let (header, accumulated_data) = chain_header.into_parts();
     let kernels = db.fetch_kernels_in_block(&accumulated_data.hash)?;
     let outputs = db.fetch_outputs_in_block(&accumulated_data.hash)?;
-    let inputs = db.fetch_inputs_in_block(&accumulated_data.hash)?;
+    // Fetch inputs from the backend and populate their spent_output data if available
+    let inputs = db
+        .fetch_inputs_in_block(&accumulated_data.hash)?
+        .into_iter()
+        .map(|mut compact_input| {
+            let utxo_mined_info = match db.fetch_output(&compact_input.output_hash()) {
+                Ok(Some(o)) => o,
+                Ok(None) => {
+                    return Err(ChainStorageError::InvalidBlock(
+                        "An Input in a block doesn't contain a matching spending output".to_string(),
+                    ))
+                },
+                Err(e) => return Err(e),
+            };
+
+            match utxo_mined_info.output {
+                PrunedOutput::Pruned { .. } => Ok(compact_input),
+                PrunedOutput::NotPruned { output } => {
+                    compact_input.add_output_data(
+                        output.features,
+                        output.commitment,
+                        output.script,
+                        output.sender_offset_public_key,
+                    );
+                    Ok(compact_input)
+                },
+            }
+        })
+        .collect::<Result<Vec<TransactionInput>, _>>()?;
+
     let mut unpruned = vec![];
     let mut pruned = vec![];
     for output in outputs {
@@ -1307,19 +1416,10 @@ fn fetch_block_with_utxo<T: BlockchainBackend>(
     db: &T,
     commitment: Commitment,
 ) -> Result<Option<HistoricalBlock>, ChainStorageError> {
-    match db.fetch_output(&commitment.to_vec()) {
-        Ok(output) => match output {
-            Some((_output, leaf, _height)) => {
-                let header = db.fetch_header_containing_utxo_mmr(leaf as u64)?;
-                fetch_block_by_hash(db, header.hash().to_owned())
-            },
-            None => Ok(None),
-        },
-        Err(_) => Err(ChainStorageError::ValueNotFound {
-            entity: "Output",
-            field: "Commitment",
-            value: commitment.to_hex(),
-        }),
+    let output = db.fetch_output(&commitment.to_vec())?;
+    match output {
+        Some(mined_info) => fetch_block_by_hash(db, mined_info.header_hash),
+        None => Ok(None),
     }
 }
 

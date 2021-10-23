@@ -87,10 +87,12 @@ impl TryInto<ci::NodeCommsRequest> for ProtoNodeCommsRequest {
     }
 }
 
-impl From<ci::NodeCommsRequest> for ProtoNodeCommsRequest {
-    fn from(request: ci::NodeCommsRequest) -> Self {
+impl TryFrom<ci::NodeCommsRequest> for ProtoNodeCommsRequest {
+    type Error = String;
+
+    fn try_from(request: ci::NodeCommsRequest) -> Result<Self, Self::Error> {
         use ci::NodeCommsRequest::*;
-        match request {
+        Ok(match request {
             GetChainMetadata => ProtoNodeCommsRequest::GetChainMetadata(true),
             FetchHeaders(block_heights) => ProtoNodeCommsRequest::FetchHeaders(block_heights.into()),
             FetchHeadersWithHashes(block_hashes) => ProtoNodeCommsRequest::FetchHeadersWithHashes(block_hashes.into()),
@@ -117,9 +119,9 @@ impl From<ci::NodeCommsRequest> for ProtoNodeCommsRequest {
                     max_weight: request.max_weight,
                 })
             },
-            GetNewBlock(block_template) => ProtoNodeCommsRequest::GetNewBlock(block_template.into()),
+            GetNewBlock(block_template) => ProtoNodeCommsRequest::GetNewBlock(block_template.try_into()?),
             FetchKernelByExcessSig(signature) => ProtoNodeCommsRequest::FetchKernelByExcessSig(signature.into()),
-        }
+        })
     }
 }
 

@@ -38,6 +38,7 @@ use crate::{
 use log::*;
 use std::{
     cmp,
+    convert::TryFrom,
     sync::{Arc, Weak},
 };
 use tari_comms::{
@@ -175,9 +176,17 @@ impl<B: BlockchainBackend + 'static> BaseNodeSyncService for BaseNodeSyncRpcServ
                         Ok(blocks) => {
                             let blocks = blocks
                                 .into_iter()
-                                .map(|hb| hb.try_into_block().map_err(RpcStatus::log_internal_error(LOG_TARGET)))
+                                .map(|hb| {
+                                    match hb.try_into_block().map_err(RpcStatus::log_internal_error(LOG_TARGET)) {
+                                        Ok(b) => Ok(b.to_compact()),
+                                        Err(e) => Err(e),
+                                    }
+                                })
                                 .map(|block| match block {
-                                    Ok(b) => Ok(proto::base_node::BlockBodyResponse::from(b)),
+                                    Ok(b) => proto::base_node::BlockBodyResponse::try_from(b).map_err(|e| {
+                                        log::error!(target: LOG_TARGET, "Internal error: {}", e);
+                                        RpcStatus::general_default()
+                                    }),
                                     Err(err) => Err(err),
                                 });
 
@@ -356,7 +365,7 @@ impl<B: BlockchainBackend + 'static> BaseNodeSyncService for BaseNodeSyncRpcServ
                     .map_err(RpcStatus::log_internal_error(LOG_TARGET))?;
 
                 Ok(Response::new(FindChainSplitResponse {
-                    fork_hash_index: idx as u32,
+                    fork_hash_index: idx as u64,
                     headers: headers.into_iter().map(Into::into).collect(),
                     tip_height: metadata.height_of_longest_chain(),
                 }))
