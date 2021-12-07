@@ -7,6 +7,12 @@ pub struct ExitError {
     details: Option<String>,
 }
 
+impl ExitError {
+    pub fn new(exit_code: ExitCode, details: Option<String>) -> Self {
+        Self { exit_code, details }
+    }
+}
+
 impl fmt::Display for ExitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let details = self.details.as_ref().map(String::as_ref).unwrap_or("");
@@ -64,6 +70,29 @@ impl ExitCode {
         match self {
             TorOffline => TOR_HINT,
             _ => "",
+        }
+    }
+}
+
+impl From<ExitCodes> for ExitError {
+    fn from(codes: ExitCodes) -> Self {
+        use ExitCodes::*;
+        match codes {
+            ConfigError(s) => Self::new(ExitCode::ConfigError, Some(s)),
+            UnknownError(s) => Self::new(ExitCode::UnknownError, Some(s)),
+            InterfaceError => Self::new(ExitCode::InterfaceError, None),
+            WalletError(s) => Self::new(ExitCode::WalletError, Some(s)),
+            GrpcError(s) => Self::new(ExitCode::GrpcError, Some(s)),
+            InputError(s) => Self::new(ExitCode::InputError, Some(s)),
+            CommandError(s) => Self::new(ExitCode::CommandError, Some(s)),
+            IOError(s) => Self::new(ExitCode::IOError, Some(s)),
+            RecoveryError(s) => Self::new(ExitCode::RecoveryError, Some(s)),
+            NetworkError(s) => Self::new(ExitCode::NetworkError, Some(s)),
+            ConversionError(s) => Self::new(ExitCode::ConversionError, Some(s)),
+            IncorrectPassword => Self::new(ExitCode::IncorrectOrEmptyPassword, None),
+            NoPassword => Self::new(ExitCode::IncorrectOrEmptyPassword, None),
+            TorOffline => Self::new(ExitCode::TorOffline, None),
+            DbInconsistentState(s) => Self::new(ExitCode::DbInconsistentState, Some(s)),
         }
     }
 }
