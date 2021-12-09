@@ -147,13 +147,10 @@ const LOG_TARGET: &str = "base_node::app";
 /// Application entry point
 fn main() {
     if let Err(err) = main_inner() {
-        let exit_code = err.exit_code;
-        eprintln!("{}", exit_code.hint());
-        error!(
-            target: LOG_TARGET,
-            "Exiting with code ({}): {:?}", exit_code as i32, err
-        );
-        process::exit(exit_code as i32);
+        eprintln!("{}", err.exit_code.hint());
+        let exit_code = err.exit_code as i32;
+        error!(target: LOG_TARGET, "Exiting with code ({}): {:?}", exit_code, err);
+        process::exit(exit_code);
     }
 }
 

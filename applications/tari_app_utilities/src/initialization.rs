@@ -4,7 +4,7 @@ use config::Config;
 use structopt::StructOpt;
 use tari_common::{
     configuration::{bootstrap::ApplicationType, Network},
-    exit_codes::ExitCodes,
+    exit_codes::{ExitCode, ExitError},
     ConfigBootstrap,
     DatabaseType,
     GlobalConfig,
@@ -17,7 +17,7 @@ pub const LOG_TARGET: &str = "tari::application";
 
 pub fn init_configuration(
     application_type: ApplicationType,
-) -> Result<(ConfigBootstrap, GlobalConfig, Config), ExitCodes> {
+) -> Result<(ConfigBootstrap, GlobalConfig, Config), ExitError> {
     // Parse and validate command-line arguments
     let mut bootstrap = ConfigBootstrap::from_args();
 
@@ -71,7 +71,7 @@ pub fn init_configuration(
 
         let grpc_address = str
             .parse::<Multiaddr>()
-            .map_err(|_| ExitCodes::InputError("GRPC address is not valid".to_string()))?;
+            .map_err(|_| ExitError::new(ExitCode::InputError, "GRPC address is not valid"))?;
         global_config.grpc_console_wallet_address = grpc_address;
     }
 

@@ -21,7 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use log::error;
-use tari_common::exit_codes::ExitCodes;
+use tari_common::exit_codes::{ExitCode, ExitError};
 
 use crate::utils::crossterm_events::CrosstermEvents;
 
@@ -52,7 +52,7 @@ use crate::utils::events::{Event, EventStream};
 
 pub const MAX_WIDTH: u16 = 133;
 
-pub fn run(app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitCodes> {
+pub fn run(app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitError> {
     let mut app = app;
     Handle::current()
         .block_on(async {
@@ -68,42 +68,42 @@ pub fn run(app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitCodes> {
             app.app_state.start_event_monitor(app.notifier.clone()).await;
             Result::<_, UiError>::Ok(())
         })
-        .map_err(|e| ExitCodes::WalletError(e.to_string()))?;
+        .map_err(|e| ExitError::new(ExitCode::WalletError, e))?;
     crossterm_loop(app)
 }
 /// This is the main loop of the application UI using Crossterm based events
-fn crossterm_loop(mut app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitCodes> {
+fn crossterm_loop(mut app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitError> {
     let events = CrosstermEvents::new();
     enable_raw_mode().map_err(|e| {
         error!(target: LOG_TARGET, "Error enabling Raw Mode {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen).map_err(|e| {
         error!(target: LOG_TARGET, "Error creating stdout context. {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
 
     let backend = CrosstermBackend::new(stdout);
 
     let mut terminal = Terminal::new(backend).map_err(|e| {
         error!(target: LOG_TARGET, "Error creating Terminal context. {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
 
     terminal.clear().map_err(|e| {
         error!(target: LOG_TARGET, "Error clearing interface. {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
 
     loop {
         terminal.draw(|f| app.draw(f)).map_err(|e| {
             error!(target: LOG_TARGET, "Error drawing interface. {}", e);
-            ExitCodes::InterfaceError
+            ExitError::new(ExitCode::InterfaceError, e)
         })?;
         match events.next().map_err(|e| {
             error!(target: LOG_TARGET, "Error reading input event: {}", e);
-            ExitCodes::InterfaceError
+            ExitError::new(ExitCode::InterfaceError, e)
         })? {
             Event::Input(event) => match (event.code, event.modifiers) {
                 (KeyCode::Char(c), KeyModifiers::CONTROL) => app.on_control_key(c),
@@ -130,20 +130,20 @@ fn crossterm_loop(mut app: App<CrosstermBackend<Stdout>>) -> Result<(), ExitCode
 
     terminal.clear().map_err(|e| {
         error!(target: LOG_TARGET, "Error clearing interface. {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
 
     disable_raw_mode().map_err(|e| {
         error!(target: LOG_TARGET, "Error disabling Raw Mode {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen).map_err(|e| {
         error!(target: LOG_TARGET, "Error releasing stdout {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
     terminal.show_cursor().map_err(|e| {
         error!(target: LOG_TARGET, "Error showing cursor: {}", e);
-        ExitCodes::InterfaceError
+        ExitError::new(ExitCode::InterfaceError, e)
     })?;
 
     Ok(())
