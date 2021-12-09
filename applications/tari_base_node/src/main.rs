@@ -165,7 +165,7 @@ fn main_inner() -> Result<(), ExitError> {
     // Set up the Tokio runtime
     let rt = setup_runtime(&node_config).map_err(|e| {
         error!(target: LOG_TARGET, "{}", e);
-        ExitError::unknown(e)
+        ExitError::new(ExitCode::UnknownError, e)
     })?;
 
     rt.block_on(run_node(node_config.into(), bootstrap))?;
@@ -220,7 +220,7 @@ async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) ->
         recovery::initiate_recover_db(&node_config)?;
         recovery::run_recovery(&node_config)
             .await
-            .map_err(|e| ExitError::new(ExitCode::RecoveryError, Some(e.to_string())))?;
+            .map_err(|e| ExitError::new(ExitCode::RecoveryError, e))?;
         return Ok(());
     };
 
@@ -240,26 +240,27 @@ async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) ->
     .map_err(|err| {
         for boxed_error in err.chain() {
             if let Some(HiddenServiceControllerError::TorControlPortOffline) = boxed_error.downcast_ref() {
-                return ExitError::new(ExitCode::TorOffline, None);
+                return ExitError::from(ExitCode::TorOffline);
             }
             if let Some(ChainStorageError::DatabaseResyncRequired(reason)) = boxed_error.downcast_ref() {
                 let details = format!("You may need to resync your database because {}", reason);
-                return ExitError::new(ExitCode::DbInconsistentState, Some(details));
+                return ExitError::new(ExitCode::DbInconsistentState, details);
             }
 
             // todo: find a better way to do this
             if boxed_error.to_string().contains("Invalid force sync peer") {
                 println!("Please check your force sync peers configuration");
-                return ExitError::config(boxed_error);
+                return ExitError::new(ExitCode::ConfigError, boxed_error);
             }
         }
-        ExitError::unknown(err)
+        ExitError::new(ExitCode::UnknownError, err)
     })?;
 
     if node_config.grpc_enabled {
         // Go, GRPC, go go
         let grpc = crate::grpc::base_node_grpc_server::BaseNodeGrpcServer::from_base_node_context(&ctx);
-        let socket_addr = multiaddr_to_socketaddr(&node_config.grpc_base_node_address).map_err(ExitError::config)?;
+        let socket_addr = multiaddr_to_socketaddr(&node_config.grpc_base_node_address)
+            .map_err(|err| ExitError::new(ExitCode::ConfigError, err))?;
         task::spawn(run_grpc(grpc, socket_addr, shutdown.to_signal()));
     }
 
