@@ -1,15 +1,24 @@
 use std::fmt;
+
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub struct ExitError {
-    exit_code: ExitCode,
-    details: Option<String>,
+    pub exit_code: ExitCode,
+    pub details: Option<String>,
 }
 
 impl ExitError {
     pub fn new(exit_code: ExitCode, details: Option<String>) -> Self {
         Self { exit_code, details }
+    }
+
+    pub fn unknown(err: impl ToString) -> Self {
+        Self::new(ExitCode::UnknownError, Some(err.to_string()))
+    }
+
+    pub fn config(err: impl ToString) -> Self {
+        Self::new(ExitCode::ConfigError, Some(err.to_string()))
     }
 }
 
@@ -20,8 +29,14 @@ impl fmt::Display for ExitError {
     }
 }
 
+impl From<ExitCode> for ExitError {
+    fn from(exit_code: ExitCode) -> Self {
+        Self::new(exit_code, None)
+    }
+}
+
 /// Enum to show failure information
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Copy, Error)]
 pub enum ExitCode {
     #[error("There is an error in the configuration.")]
     ConfigError = 101,

@@ -118,7 +118,12 @@ use tari_app_utilities::{
     initialization::init_configuration,
     utilities::setup_runtime,
 };
-use tari_common::{configuration::bootstrap::ApplicationType, exit_codes::ExitCodes, ConfigBootstrap, GlobalConfig};
+use tari_common::{
+    configuration::bootstrap::ApplicationType,
+    exit_codes::{ExitCode, ExitError},
+    ConfigBootstrap,
+    GlobalConfig,
+};
 use tari_comms::{
     peer_manager::PeerFeatures,
     tor::HiddenServiceControllerError,
@@ -141,19 +146,18 @@ const LOG_TARGET: &str = "base_node::app";
 
 /// Application entry point
 fn main() {
-    if let Err(exit_code) = main_inner() {
-        exit_code.eprint_details();
+    if let Err(err) = main_inner() {
+        let exit_code = err.exit_code;
+        eprintln!("{}", exit_code.hint());
         error!(
             target: LOG_TARGET,
-            "Exiting with code ({}): {:?}",
-            exit_code.as_i32(),
-            exit_code
+            "Exiting with code ({}): {:?}", exit_code as i32, err
         );
-        process::exit(exit_code.as_i32());
+        process::exit(exit_code as i32);
     }
 }
 
-fn main_inner() -> Result<(), ExitCodes> {
+fn main_inner() -> Result<(), ExitError> {
     let (bootstrap, node_config, _) = init_configuration(ApplicationType::BaseNode)?;
 
     debug!(target: LOG_TARGET, "Using configuration: {:?}", node_config);
@@ -161,7 +165,7 @@ fn main_inner() -> Result<(), ExitCodes> {
     // Set up the Tokio runtime
     let rt = setup_runtime(&node_config).map_err(|e| {
         error!(target: LOG_TARGET, "{}", e);
-        ExitCodes::UnknownError(e)
+        ExitError::unknown(e)
     })?;
 
     rt.block_on(run_node(node_config.into(), bootstrap))?;
@@ -171,7 +175,7 @@ fn main_inner() -> Result<(), ExitCodes> {
 }
 
 /// Sets up the base node and runs the cli_loop
-async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) -> Result<(), ExitCodes> {
+async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) -> Result<(), ExitError> {
     // This is the main and only shutdown trigger for the system.
     let shutdown = Shutdown::new();
 
@@ -216,7 +220,7 @@ async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) ->
         recovery::initiate_recover_db(&node_config)?;
         recovery::run_recovery(&node_config)
             .await
-            .map_err(|e| ExitCodes::RecoveryError(e.to_string()))?;
+            .map_err(|e| ExitError::new(ExitCode::RecoveryError, Some(e.to_string())))?;
         return Ok(());
     };
 
@@ -236,29 +240,26 @@ async fn run_node(node_config: Arc<GlobalConfig>, bootstrap: ConfigBootstrap) ->
     .map_err(|err| {
         for boxed_error in err.chain() {
             if let Some(HiddenServiceControllerError::TorControlPortOffline) = boxed_error.downcast_ref() {
-                return ExitCodes::TorOffline;
+                return ExitError::new(ExitCode::TorOffline, None);
             }
             if let Some(ChainStorageError::DatabaseResyncRequired(reason)) = boxed_error.downcast_ref() {
-                return ExitCodes::DbInconsistentState(format!(
-                    "You may need to resync your database because {}",
-                    reason
-                ));
+                let details = format!("You may need to resync your database because {}", reason);
+                return ExitError::new(ExitCode::DbInconsistentState, Some(details));
             }
 
             // todo: find a better way to do this
             if boxed_error.to_string().contains("Invalid force sync peer") {
                 println!("Please check your force sync peers configuration");
-                return ExitCodes::ConfigError(boxed_error.to_string());
+                return ExitError::config(boxed_error);
             }
         }
-        ExitCodes::UnknownError(err.to_string())
+        ExitError::unknown(err)
     })?;
 
     if node_config.grpc_enabled {
         // Go, GRPC, go go
         let grpc = crate::grpc::base_node_grpc_server::BaseNodeGrpcServer::from_base_node_context(&ctx);
-        let socket_addr = multiaddr_to_socketaddr(&node_config.grpc_base_node_address)
-            .map_err(|e| ExitCodes::ConfigError(e.to_string()))?;
+        let socket_addr = multiaddr_to_socketaddr(&node_config.grpc_base_node_address).map_err(ExitError::config)?;
         task::spawn(run_grpc(grpc, socket_addr, shutdown.to_signal()));
     }
 
