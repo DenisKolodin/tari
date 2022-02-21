@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Error};
 use async_trait::async_trait;
@@ -15,19 +15,12 @@ use tari_utilities::ByteArray;
 
 use super::{
     args::{Args, ArgsError, ArgsReason, FromHex},
+    command,
+    command::TypedCommandPerformer,
     command_handler::{CommandHandler, StatusOutput},
     parser::BaseNodeCommand,
 };
 use crate::{builder::BaseNodeContext, LOG_TARGET};
-
-#[async_trait]
-pub trait TypedCommandPerformer<'t>: Send + Sync + 'static {
-    type Args: Parser + Send;
-    type Report: Display + 't;
-
-    fn command_name(&self) -> &'static str;
-    async fn perform_command(&'t mut self, args: Self::Args) -> Result<Self::Report, Error>;
-}
 
 #[async_trait]
 impl<T> CommandPerformer for T
@@ -66,7 +59,7 @@ impl Performer {
             command_handler,
             performers: HashMap::new(),
         };
-        this.register_command(super::state_info_command::StateInfoCommand::new(ctx));
+        this.register_command(command::StateInfoCommand::new(ctx));
         this
     }
 

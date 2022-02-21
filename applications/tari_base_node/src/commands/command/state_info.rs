@@ -6,7 +6,7 @@ use clap::Parser;
 use tari_core::base_node::state_machine_service::states::StatusInfo;
 use tokio::sync::watch;
 
-use super::performer::TypedCommandPerformer;
+use super::TypedCommandPerformer;
 use crate::builder::BaseNodeContext;
 
 pub struct StateInfoCommand {
