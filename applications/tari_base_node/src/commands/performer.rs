@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt::Display, time::Duration};
 
 use anyhow::{anyhow, Error};
 use async_trait::async_trait;
+use clap::Parser;
 use derive_more::{Deref, DerefMut};
 use log::*;
 use strum::IntoEnumIterator;
@@ -21,11 +22,11 @@ use crate::LOG_TARGET;
 
 #[async_trait]
 pub trait TypedCommandPerformer<'t>: Send + Sync + 'static {
-    // type Args;
+    type Args: Parser + Send;
     type Report: Display + 't;
 
     fn command_name(&self) -> &'static str;
-    async fn perform_command(&'t mut self, args: Args<'t>) -> Result<Self::Report, Error>;
+    async fn perform_command(&'t mut self, args: Self::Args) -> Result<Self::Report, Error>;
 }
 
 #[async_trait]
@@ -37,6 +38,7 @@ where T: for<'t> TypedCommandPerformer<'t>
     }
 
     async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error> {
+        let args = T::Args::try_parse_from(args)?;
         let report = TypedCommandPerformer::perform_command(self, args).await?;
         println!("{}", report);
         Ok(())
