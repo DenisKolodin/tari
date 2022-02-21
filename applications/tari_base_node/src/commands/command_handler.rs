@@ -210,31 +210,31 @@ impl CommandHandler {
         Ok(())
     }
 
-    /// Function to process the get-state-info command
-    pub fn state_info(&self) -> Result<(), Error> {
-        println!("Current state machine state:\n{}", *self.state_machine_info.borrow());
-        Ok(())
-    }
-
-    /// Check for updates
-    pub async fn check_for_updates(&mut self) -> Result<(), Error> {
-        println!("Checking for updates (current version: {})...", consts::APP_VERSION);
-        match self.software_updater.check_for_updates().await {
-            Some(update) => {
-                println!(
-                    "Version {} of the {} is available: {} (sha: {})",
-                    update.version(),
-                    update.app(),
-                    update.download_url(),
-                    update.to_hash_hex()
-                );
-            },
-            None => {
-                println!("No updates found.",);
-            },
-        }
-        Ok(())
-    }
+    // Function to process the get-state-info command
+    // pub fn state_info(&self) -> Result<(), Error> {
+    // println!("Current state machine state:\n{}", *self.state_machine_info.borrow());
+    // Ok(())
+    // }
+    //
+    // Check for updates
+    // pub async fn check_for_updates(&mut self) -> Result<(), Error> {
+    // println!("Checking for updates (current version: {})...", consts::APP_VERSION);
+    // match self.software_updater.check_for_updates().await {
+    // Some(update) => {
+    // println!(
+    // "Version {} of the {} is available: {} (sha: {})",
+    // update.version(),
+    // update.app(),
+    // update.download_url(),
+    // update.to_hash_hex()
+    // );
+    // },
+    // None => {
+    // println!("No updates found.",);
+    // },
+    // }
+    // Ok(())
+    // }
 
     /// Function process the version command
     pub fn print_version(&self) -> Result<(), Error> {

@@ -387,7 +387,8 @@ async fn status_loop(mut performer: Performer, shutdown: Shutdown) {
 /// ## Returns
 /// Doesn't return anything
 async fn cli_loop(mut performer: Performer, mut shutdown: Shutdown) {
-    let parser = Parser::new();
+    let mut parser = Parser::new();
+    parser.add_commands(performer.commands().cloned());
     commands::cli::print_banner(parser.get_commands(), 3);
 
     let cli_config = Config::builder()
@@ -418,8 +419,16 @@ async fn cli_loop(mut performer: Performer, mut shutdown: Shutdown) {
                             // TODO: Process error from the command
                             let fut = performer.handle_command_from_registry(line.as_str(), &mut shutdown);
                             let res = time::timeout(Duration::from_secs(30), fut).await;
-                            if let Err(_err) = res {
-                                println!("Time for command execution elapsed: `{}`", line);
+                            match res {
+                                Ok(Ok(())) => {
+                                }
+                                Ok(Err(err)) => {
+                                    println!("Command failed:");
+                                    println!("{}", err);
+                                }
+                                Err(_err) => {
+                                    println!("Time for command execution elapsed: `{}`", line);
+                                }
                             }
                         }
                         CommandEvent::Interrupt => {

@@ -60,7 +60,12 @@ impl Performer {
             performers: HashMap::new(),
         };
         this.register_command(command::StateInfoCommand::new(ctx));
+        this.register_command(command::CheckForUpdatesCommand::new(ctx));
         this
+    }
+
+    pub fn commands(&self) -> impl Iterator<Item = &String> {
+        self.performers.keys()
     }
 
     fn register_command(&mut self, performer: impl CommandPerformer) {
@@ -126,9 +131,9 @@ impl Performer {
                 Ok(())
             },
             Status => self.command_handler.status(StatusOutput::Full).await,
-            GetStateInfo => self.command_handler.state_info(),
+            // GetStateInfo => self.command_handler.state_info(),
             Version => self.command_handler.print_version(),
-            CheckForUpdates => self.command_handler.check_for_updates().await,
+            // CheckForUpdates => self.command_handler.check_for_updates().await,
             GetChainMetadata => self.command_handler.get_chain_meta().await,
             GetDbStats => self.command_handler.get_blockchain_db_stats().await,
             DialPeer => self.process_dial_peer(typed_args).await,
@@ -185,15 +190,15 @@ impl Performer {
             Status => {
                 println!("Prints out the status of this node");
             },
-            GetStateInfo => {
-                println!("Prints out the status of the base node state machine");
-            },
+            // GetStateInfo => {
+            // println!("Prints out the status of the base node state machine");
+            // },
             Version => {
                 println!("Gets the current application version");
             },
-            CheckForUpdates => {
-                println!("Checks for software updates if auto update is enabled");
-            },
+            // CheckForUpdates => {
+            // println!("Checks for software updates if auto update is enabled");
+            // },
             GetChainMetadata => {
                 println!("Gets your base node chain meta data");
             },

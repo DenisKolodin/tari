@@ -46,6 +46,6 @@ pub struct StateInfoReport<'a> {
 
 impl<'a> fmt::Display for StateInfoReport<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Current state machine state:\n{}\n", *self.status_info)
+        writeln!(f, "Current state machine state:\n{}", *self.status_info)
     }
 }

@@ -39,7 +39,7 @@ use strum_macros::{Display, EnumIter, EnumString};
 pub enum BaseNodeCommand {
     Help,
     Version,
-    CheckForUpdates,
+    // CheckForUpdates,
     Status,
     GetChainMetadata,
     GetDbStats,
@@ -69,7 +69,7 @@ pub enum BaseNodeCommand {
     GetMempoolState,
     GetMempoolTx,
     Whoami,
-    GetStateInfo,
+    // GetStateInfo,
     GetNetworkStats,
     Quit,
     Exit,
@@ -118,6 +118,10 @@ impl Parser {
             commands: BaseNodeCommand::iter().map(|x| x.to_string()).collect(),
             hinter: HistoryHinter {},
         }
+    }
+
+    pub fn add_commands(&mut self, commands: impl Iterator<Item = String>) {
+        self.commands.extend(commands);
     }
 
     /// This will return the list of commands from the parser
