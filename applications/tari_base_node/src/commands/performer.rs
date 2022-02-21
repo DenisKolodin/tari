@@ -1,6 +1,7 @@
-use std::time::Duration;
+use std::{collections::HashMap, fmt::Display, time::Duration};
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
+use async_trait::async_trait;
 use derive_more::{Deref, DerefMut};
 use log::*;
 use strum::IntoEnumIterator;
@@ -18,14 +19,75 @@ use super::{
 };
 use crate::LOG_TARGET;
 
+#[async_trait]
+pub trait TypedCommandPerformer<'t>: Send + Sync + 'static {
+    // type Args;
+    type Report: Display + 't;
+
+    fn command_name(&self) -> &'static str;
+    async fn perform_command(&'t mut self, args: Args<'t>) -> Result<Self::Report, Error>;
+}
+
+#[async_trait]
+impl<T> CommandPerformer for T
+where T: for<'t> TypedCommandPerformer<'t>
+{
+    fn command_name(&self) -> &'static str {
+        TypedCommandPerformer::command_name(self).into()
+    }
+
+    async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error> {
+        let report = TypedCommandPerformer::perform_command(self, args).await?;
+        println!("{}", report);
+        Ok(())
+    }
+}
+
+#[async_trait]
+pub trait CommandPerformer: Send + Sync + 'static {
+    fn command_name(&self) -> &'static str;
+    async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error>;
+}
+
 #[derive(Deref, DerefMut)]
 pub struct Performer {
+    #[deref]
+    #[deref_mut]
     command_handler: CommandHandler,
+    performers: HashMap<String, Box<dyn CommandPerformer>>,
+}
+
+impl Performer {
+    pub fn register_command(&mut self, performer: impl CommandPerformer) {
+        let name = performer.command_name().into();
+        self.performers.insert(name, Box::new(performer));
+    }
+
+    pub async fn handle_command_from_registry(
+        &mut self,
+        command_str: &str,
+        shutdown: &mut Shutdown,
+    ) -> Result<(), Error> {
+        if !command_str.trim().is_empty() {
+            let mut args = Args::split(command_str);
+            let command: String = args.take_next("command")?;
+            let performer = self
+                .performers
+                .get_mut(&command)
+                .ok_or_else(|| anyhow!("Command `{}` not found.", command))?;
+            performer.perform_command(args).await
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl Performer {
     pub fn new(command_handler: CommandHandler) -> Self {
-        Self { command_handler }
+        Self {
+            command_handler,
+            performers: HashMap::new(),
+        }
     }
 
     /// This will parse the provided command and execute the task
