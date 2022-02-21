@@ -1,6 +1,8 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
+use async_trait::async_trait;
+use clap::{CommandFactory, Parser};
 use derive_more::{Deref, DerefMut};
 use log::*;
 use strum::IntoEnumIterator;
@@ -13,21 +15,101 @@ use tari_utilities::ByteArray;
 
 use super::{
     args::{Args, ArgsError, ArgsReason, FromHex},
+    command,
+    command::TypedCommandPerformer,
     command_handler::{CommandHandler, StatusOutput},
     parser::BaseNodeCommand,
 };
-use crate::LOG_TARGET;
+use crate::{builder::BaseNodeContext, LOG_TARGET};
+
+#[async_trait]
+impl<T> CommandPerformer for T
+where T: for<'t> TypedCommandPerformer<'t>
+{
+    fn command_name(&self) -> &'static str {
+        TypedCommandPerformer::command_name(self).into()
+    }
+
+    fn print_help(&self) -> Result<(), Error> {
+        T::Args::command().print_help().map_err(Error::from)
+    }
+
+    async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error> {
+        let args = T::Args::try_parse_from(args)?;
+        let report = TypedCommandPerformer::perform_command(self, args).await?;
+        println!("{}", report);
+        Ok(())
+    }
+}
+
+#[async_trait]
+pub trait CommandPerformer: Send + Sync + 'static {
+    fn command_name(&self) -> &'static str;
+    fn print_help(&self) -> Result<(), Error>;
+    async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error>;
+}
 
 #[derive(Deref, DerefMut)]
 pub struct Performer {
+    #[deref]
+    #[deref_mut]
     command_handler: CommandHandler,
+    performers: HashMap<String, Box<dyn CommandPerformer>>,
 }
 
 impl Performer {
-    pub fn new(command_handler: CommandHandler) -> Self {
-        Self { command_handler }
+    pub fn new(ctx: &BaseNodeContext) -> Self {
+        let command_handler = CommandHandler::new(&ctx);
+        let mut this = Self {
+            command_handler,
+            performers: HashMap::new(),
+        };
+        this.register_command(command::CheckForUpdatesCommand::new(ctx));
+        this.register_command(command::GetChainMetaCommand::new(ctx));
+        this.register_command(command::PrintVersionCommand::new(ctx));
+        this.register_command(command::StateInfoCommand::new(ctx));
+        this
     }
 
+    pub fn commands(&self) -> impl Iterator<Item = &String> {
+        self.performers.keys()
+    }
+
+    fn register_command(&mut self, performer: impl CommandPerformer) {
+        let name = performer.command_name().into();
+        self.performers.insert(name, Box::new(performer));
+    }
+
+    pub async fn handle_command_from_registry(
+        &mut self,
+        command_str: &str,
+        shutdown: &mut Shutdown,
+    ) -> Result<(), Error> {
+        if !command_str.trim().is_empty() {
+            let mut args = Args::split(command_str);
+            let command: String = args.take_next("command")?;
+            if command == "help" {
+                let opt_command: Option<String> = args.try_take_next("command")?;
+                if let Some(performer) = opt_command.and_then(|cmd| self.performers.get(&cmd)) {
+                } else {
+                }
+            } else {
+                let performer = self
+                    .performers
+                    .get_mut(&command)
+                    .ok_or_else(|| anyhow!("Command `{}` not found.", command))?;
+                let res = performer.perform_command(args).await;
+                if let Err(err) = res {
+                    println!("Command failed: {}", err);
+                    performer.print_help()?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Performer {
     /// This will parse the provided command and execute the task
     pub async fn handle_command(&mut self, command_str: &str, shutdown: &mut Shutdown) {
         if command_str.trim().is_empty() {
@@ -66,9 +148,9 @@ impl Performer {
                 Ok(())
             },
             Status => self.command_handler.status(StatusOutput::Full).await,
-            GetStateInfo => self.command_handler.state_info(),
-            Version => self.command_handler.print_version(),
-            CheckForUpdates => self.command_handler.check_for_updates().await,
+            // GetStateInfo => self.command_handler.state_info(),
+            // Version => self.command_handler.print_version(),
+            // CheckForUpdates => self.command_handler.check_for_updates().await,
             GetChainMetadata => self.command_handler.get_chain_meta().await,
             GetDbStats => self.command_handler.get_blockchain_db_stats().await,
             DialPeer => self.process_dial_peer(typed_args).await,
@@ -125,15 +207,16 @@ impl Performer {
             Status => {
                 println!("Prints out the status of this node");
             },
-            GetStateInfo => {
-                println!("Prints out the status of the base node state machine");
-            },
-            Version => {
-                println!("Gets the current application version");
-            },
-            CheckForUpdates => {
-                println!("Checks for software updates if auto update is enabled");
-            },
+            // GetStateInfo => {
+            // println!("Prints out the status of the base node state machine");
+            // },
+            // Version => {
+            // println!("Gets the current application version");
+            // },
+            //
+            // CheckForUpdates => {
+            // println!("Checks for software updates if auto update is enabled");
+            // },
             GetChainMetadata => {
                 println!("Gets your base node chain meta data");
             },

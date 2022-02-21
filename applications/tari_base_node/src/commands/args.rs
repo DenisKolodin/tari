@@ -40,6 +40,15 @@ impl<T: AsRef<str>> From<T> for ArgsReason {
     }
 }
 
+impl<'a> IntoIterator for Args<'a> {
+    type IntoIter = Peekable<SplitWhitespace<'a>>;
+    type Item = &'a str;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.splitted
+    }
+}
+
 pub struct Args<'a> {
     splitted: Peekable<SplitWhitespace<'a>>,
 }
