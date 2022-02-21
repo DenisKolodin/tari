@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Error};
 use async_trait::async_trait;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use derive_more::{Deref, DerefMut};
 use log::*;
 use strum::IntoEnumIterator;
@@ -30,6 +30,10 @@ where T: for<'t> TypedCommandPerformer<'t>
         TypedCommandPerformer::command_name(self).into()
     }
 
+    fn print_help(&self) -> Result<(), Error> {
+        T::Args::command().print_help().map_err(Error::from)
+    }
+
     async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error> {
         let args = T::Args::try_parse_from(args)?;
         let report = TypedCommandPerformer::perform_command(self, args).await?;
@@ -41,6 +45,7 @@ where T: for<'t> TypedCommandPerformer<'t>
 #[async_trait]
 pub trait CommandPerformer: Send + Sync + 'static {
     fn command_name(&self) -> &'static str;
+    fn print_help(&self) -> Result<(), Error>;
     async fn perform_command<'a>(&'a mut self, args: Args<'a>) -> Result<(), Error>;
 }
 
@@ -87,10 +92,13 @@ impl Performer {
                 .performers
                 .get_mut(&command)
                 .ok_or_else(|| anyhow!("Command `{}` not found.", command))?;
-            performer.perform_command(args).await
-        } else {
-            Ok(())
+            let res = performer.perform_command(args).await;
+            if let Err(err) = res {
+                println!("Command failed: {}", err);
+                performer.print_help()?;
+            }
         }
+        Ok(())
     }
 }
 
