@@ -18,7 +18,7 @@ use super::{
     command_handler::{CommandHandler, StatusOutput},
     parser::BaseNodeCommand,
 };
-use crate::LOG_TARGET;
+use crate::{builder::BaseNodeContext, LOG_TARGET};
 
 #[async_trait]
 pub trait TypedCommandPerformer<'t>: Send + Sync + 'static {
@@ -60,7 +60,17 @@ pub struct Performer {
 }
 
 impl Performer {
-    pub fn register_command(&mut self, performer: impl CommandPerformer) {
+    pub fn new(ctx: &BaseNodeContext) -> Self {
+        let command_handler = CommandHandler::new(&ctx);
+        let mut this = Self {
+            command_handler,
+            performers: HashMap::new(),
+        };
+        this.register_command(super::state_info_command::StateInfoCommand::new(ctx));
+        this
+    }
+
+    fn register_command(&mut self, performer: impl CommandPerformer) {
         let name = performer.command_name().into();
         self.performers.insert(name, Box::new(performer));
     }
@@ -85,13 +95,6 @@ impl Performer {
 }
 
 impl Performer {
-    pub fn new(command_handler: CommandHandler) -> Self {
-        Self {
-            command_handler,
-            performers: HashMap::new(),
-        }
-    }
-
     /// This will parse the provided command and execute the task
     pub async fn handle_command(&mut self, command_str: &str, shutdown: &mut Shutdown) {
         if command_str.trim().is_empty() {

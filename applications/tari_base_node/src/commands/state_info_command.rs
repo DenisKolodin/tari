@@ -7,9 +7,18 @@ use tari_core::base_node::state_machine_service::states::StatusInfo;
 use tokio::sync::watch;
 
 use super::performer::TypedCommandPerformer;
+use crate::builder::BaseNodeContext;
 
 pub struct StateInfoCommand {
     state_machine_info: watch::Receiver<StatusInfo>,
+}
+
+impl StateInfoCommand {
+    pub fn new(ctx: &BaseNodeContext) -> Self {
+        Self {
+            state_machine_info: ctx.get_state_machine_info_channel(),
+        }
+    }
 }
 
 #[async_trait]

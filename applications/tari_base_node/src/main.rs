@@ -102,7 +102,7 @@ use std::{
 };
 
 use commands::{
-    command_handler::{CommandHandler, StatusOutput},
+    command_handler::StatusOutput,
     parser::Parser,
     performer::Performer,
     reader::{CommandEvent, CommandReader},
@@ -284,16 +284,16 @@ async fn run_node(
     }
 
     // Run, node, run!
-    let command_handler = CommandHandler::new(&ctx);
+    let performer = Performer::new(&ctx);
     if bootstrap.non_interactive_mode {
-        task::spawn(status_loop(command_handler, shutdown));
+        task::spawn(status_loop(performer, shutdown));
         println!("Node started in non-interactive mode (pid = {})", process::id());
     } else {
         info!(
             target: LOG_TARGET,
             "Node has been successfully configured and initialized. Starting CLI loop."
         );
-        task::spawn(cli_loop(command_handler, shutdown));
+        task::spawn(cli_loop(performer, shutdown));
     }
     if !config.force_sync_peers.is_empty() {
         warn!(
@@ -361,7 +361,7 @@ fn status_interval(start_time: Instant) -> time::Sleep {
     time::sleep(duration)
 }
 
-async fn status_loop(mut command_handler: CommandHandler, shutdown: Shutdown) {
+async fn status_loop(mut performer: Performer, shutdown: Shutdown) {
     let start_time = Instant::now();
     let mut shutdown_signal = shutdown.to_signal();
     loop {
@@ -373,7 +373,7 @@ async fn status_loop(mut command_handler: CommandHandler, shutdown: Shutdown) {
             }
 
             _ = interval => {
-               command_handler.status(StatusOutput::Log).await.ok();
+               performer.status(StatusOutput::Log).await.ok();
             },
         }
     }
@@ -386,11 +386,9 @@ async fn status_loop(mut command_handler: CommandHandler, shutdown: Shutdown) {
 ///
 /// ## Returns
 /// Doesn't return anything
-async fn cli_loop(command_handler: CommandHandler, mut shutdown: Shutdown) {
+async fn cli_loop(mut performer: Performer, mut shutdown: Shutdown) {
     let parser = Parser::new();
     commands::cli::print_banner(parser.get_commands(), 3);
-
-    let mut performer = Performer::new(command_handler);
 
     let cli_config = Config::builder()
         .history_ignore_space(true)
