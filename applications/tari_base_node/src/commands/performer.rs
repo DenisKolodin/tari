@@ -60,6 +60,7 @@ impl Performer {
             performers: HashMap::new(),
         };
         this.register_command(command::CheckForUpdatesCommand::new(ctx));
+        this.register_command(command::GetChainMetaCommand::new(ctx));
         this.register_command(command::PrintVersionCommand::new(ctx));
         this.register_command(command::StateInfoCommand::new(ctx));
         this
