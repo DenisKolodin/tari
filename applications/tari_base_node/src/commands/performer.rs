@@ -88,14 +88,21 @@ impl Performer {
         if !command_str.trim().is_empty() {
             let mut args = Args::split(command_str);
             let command: String = args.take_next("command")?;
-            let performer = self
-                .performers
-                .get_mut(&command)
-                .ok_or_else(|| anyhow!("Command `{}` not found.", command))?;
-            let res = performer.perform_command(args).await;
-            if let Err(err) = res {
-                println!("Command failed: {}", err);
-                performer.print_help()?;
+            if command == "help" {
+                let opt_command: Option<String> = args.try_take_next("command")?;
+                if let Some(performer) = opt_command.and_then(|cmd| self.performers.get(&cmd)) {
+                } else {
+                }
+            } else {
+                let performer = self
+                    .performers
+                    .get_mut(&command)
+                    .ok_or_else(|| anyhow!("Command `{}` not found.", command))?;
+                let res = performer.perform_command(args).await;
+                if let Err(err) = res {
+                    println!("Command failed: {}", err);
+                    performer.print_help()?;
+                }
             }
         }
         Ok(())
