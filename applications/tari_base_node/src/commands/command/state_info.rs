@@ -40,11 +40,11 @@ impl<'t> TypedCommandPerformer<'t> for StateInfoCommand {
 #[derive(Parser, Debug)]
 pub struct StateInfoArgs {}
 
-pub struct StateInfoReport<'a> {
-    status_info: watch::Ref<'a, StatusInfo>,
+pub struct StateInfoReport<'t> {
+    status_info: watch::Ref<'t, StatusInfo>,
 }
 
-impl<'a> fmt::Display for StateInfoReport<'a> {
+impl<'t> fmt::Display for StateInfoReport<'t> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Current state machine state:\n{}", *self.status_info)
     }

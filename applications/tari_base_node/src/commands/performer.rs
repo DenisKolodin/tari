@@ -59,8 +59,9 @@ impl Performer {
             command_handler,
             performers: HashMap::new(),
         };
-        this.register_command(command::StateInfoCommand::new(ctx));
         this.register_command(command::CheckForUpdatesCommand::new(ctx));
+        this.register_command(command::PrintVersionCommand::new(ctx));
+        this.register_command(command::StateInfoCommand::new(ctx));
         this
     }
 
@@ -132,7 +133,7 @@ impl Performer {
             },
             Status => self.command_handler.status(StatusOutput::Full).await,
             // GetStateInfo => self.command_handler.state_info(),
-            Version => self.command_handler.print_version(),
+            // Version => self.command_handler.print_version(),
             // CheckForUpdates => self.command_handler.check_for_updates().await,
             GetChainMetadata => self.command_handler.get_chain_meta().await,
             GetDbStats => self.command_handler.get_blockchain_db_stats().await,
@@ -193,9 +194,10 @@ impl Performer {
             // GetStateInfo => {
             // println!("Prints out the status of the base node state machine");
             // },
-            Version => {
-                println!("Gets the current application version");
-            },
+            // Version => {
+            // println!("Gets the current application version");
+            // },
+            //
             // CheckForUpdates => {
             // println!("Checks for software updates if auto update is enabled");
             // },

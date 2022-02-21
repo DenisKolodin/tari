@@ -38,7 +38,7 @@ use strum_macros::{Display, EnumIter, EnumString};
 #[strum(serialize_all = "kebab_case")]
 pub enum BaseNodeCommand {
     Help,
-    Version,
+    // Version,
     // CheckForUpdates,
     Status,
     GetChainMetadata,
