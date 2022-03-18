@@ -34,3 +34,12 @@ impl From<ClapError> for ConfigError {
         }
     }
 }
+
+impl From<config::ConfigError> for ConfigError {
+    fn from(err: config::ConfigError) -> Self {
+        Self {
+            cause: "Configuration building error",
+            source: Some(err.to_string()),
+        }
+    }
+}
