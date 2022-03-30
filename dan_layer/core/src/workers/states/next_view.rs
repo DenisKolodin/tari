@@ -22,11 +22,11 @@
 
 use std::marker::PhantomData;
 
+use anyhow::Error;
 use log::*;
 use tari_shutdown::ShutdownSignal;
 
 use crate::{
-    digital_assets_error::DigitalAssetError,
     models::{AssetDefinition, Committee, HotStuffMessage, HotStuffTreeNode, QuorumCertificate, StateRoot, View},
     services::{infrastructure_services::OutboundService, PayloadProvider, ServiceSpecification},
     storage::DbFactory,
@@ -54,7 +54,7 @@ impl<TSpecification: ServiceSpecification> NextViewState<TSpecification> {
         asset_definition: &AssetDefinition,
         payload_provider: &TSpecification::PayloadProvider,
         _shutdown: &ShutdownSignal,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    ) -> Result<ConsensusWorkerStateEvent, Error> {
         let chain_db = db_factory.get_or_create_chain_db(&asset_definition.public_key)?;
         if chain_db.is_empty()? {
             info!(target: LOG_TARGET, "Database is empty. Proposing genesis block");
