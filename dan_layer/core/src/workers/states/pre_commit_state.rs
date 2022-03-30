@@ -22,12 +22,12 @@
 
 use std::collections::HashMap;
 
+use anyhow::Error;
 use log::*;
 use tari_common_types::types::PublicKey;
 use tokio::time::{sleep, Duration};
 
 use crate::{
-    digital_assets_error::DigitalAssetError,
     models::{Committee, HotStuffMessage, HotStuffMessageType, QuorumCertificate, TreeNodeHash, View, ViewId},
     services::{
         infrastructure_services::{InboundConnectionService, OutboundService},
@@ -69,7 +69,7 @@ impl<TSpecification: ServiceSpecification> PreCommitState<TSpecification> {
         outbound_service: &mut TSpecification::OutboundService,
         signing_service: &TSpecification::SigningService,
         unit_of_work: TUnitOfWork,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    ) -> Result<ConsensusWorkerStateEvent, Error> {
         self.received_prepare_messages.clear();
         let mut unit_of_work = unit_of_work;
         let timeout = sleep(timeout);
@@ -105,7 +105,7 @@ impl<TSpecification: ServiceSpecification> PreCommitState<TSpecification> {
         message: HotStuffMessage<TSpecification::Payload>,
         sender: &TSpecification::Addr,
         outbound: &mut TSpecification::OutboundService,
-    ) -> Result<Option<ConsensusWorkerStateEvent>, DigitalAssetError> {
+    ) -> Result<Option<ConsensusWorkerStateEvent>, Error> {
         debug!(
             target: LOG_TARGET,
             "Received message as leader:{:?} for view:{}",
@@ -155,11 +155,12 @@ impl<TSpecification: ServiceSpecification> PreCommitState<TSpecification> {
         committee: &Committee<TSpecification::Addr>,
         prepare_qc: QuorumCertificate,
         view_number: ViewId,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         let message = HotStuffMessage::pre_commit(None, Some(prepare_qc), view_number, self.asset_public_key.clone());
         outbound
             .broadcast(self.node_id.clone(), committee.members.as_slice(), message)
             .await
+            .map_err(Error::from)
     }
 
     fn create_qc(&self, current_view: &View) -> Option<QuorumCertificate> {
@@ -197,7 +198,7 @@ impl<TSpecification: ServiceSpecification> PreCommitState<TSpecification> {
         outbound: &mut TSpecification::OutboundService,
         signing_service: &TSpecification::SigningService,
         unit_of_work: &mut TUnitOfWork,
-    ) -> Result<Option<ConsensusWorkerStateEvent>, DigitalAssetError> {
+    ) -> Result<Option<ConsensusWorkerStateEvent>, Error> {
         debug!(
             target: LOG_TARGET,
             "Received message as replica:{:?} for view:{}",
@@ -244,9 +245,12 @@ impl<TSpecification: ServiceSpecification> PreCommitState<TSpecification> {
         view_leader: &TSpecification::Addr,
         view_number: ViewId,
         signing_service: &TSpecification::SigningService,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         let mut message = HotStuffMessage::vote_pre_commit(node, view_number, self.asset_public_key.clone());
         message.add_partial_sig(signing_service.sign(&self.node_id, &message.create_signature_challenge())?);
-        outbound.send(self.node_id.clone(), view_leader.clone(), message).await
+        outbound
+            .send(self.node_id.clone(), view_leader.clone(), message)
+            .await
+            .map_err(Error::from)
     }
 }
