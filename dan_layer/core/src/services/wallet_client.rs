@@ -20,11 +20,12 @@
 //  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 //  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use anyhow::Error;
 use async_trait::async_trait;
 use tari_common_types::types::PublicKey;
 use tari_comms::types::CommsPublicKey;
 
-use crate::{models::StateRoot, DigitalAssetError};
+use crate::models::StateRoot;
 
 #[async_trait]
 pub trait WalletClient {
@@ -34,5 +35,5 @@ pub trait WalletClient {
         checkpoint_unique_id: &[u8],
         state_root: &StateRoot,
         next_committee: Vec<CommsPublicKey>,
-    ) -> Result<(), DigitalAssetError>;
+    ) -> Result<(), Error>;
 }

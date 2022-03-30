@@ -22,12 +22,12 @@
 
 use std::marker::PhantomData;
 
+use anyhow::Error;
 use log::*;
 use tari_common_types::types::COMMITTEE_DEFINITION_ID;
 use tari_utilities::hex::Hex;
 
 use crate::{
-    digital_assets_error::DigitalAssetError,
     models::AssetDefinition,
     services::{BaseNodeClient, CommitteeManager, ServiceSpecification},
     storage::DbFactory,
@@ -58,7 +58,7 @@ impl<TSpecification: ServiceSpecification> Starting<TSpecification> {
         committee_manager: &mut TSpecification::CommitteeManager,
         db_factory: &TSpecification::DbFactory,
         node_id: &TSpecification::Addr,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError>
+    ) -> Result<ConsensusWorkerStateEvent, Error>
     where
         TSpecification: ServiceSpecification,
     {

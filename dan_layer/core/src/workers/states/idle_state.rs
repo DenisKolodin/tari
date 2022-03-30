@@ -20,15 +20,16 @@
 //  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 //  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use anyhow::Error;
 use tokio::time::{sleep, Duration};
 
-use crate::{digital_assets_error::DigitalAssetError, workers::states::ConsensusWorkerStateEvent};
+use crate::workers::states::ConsensusWorkerStateEvent;
 
 #[derive(Default)]
 pub struct IdleState {}
 
 impl IdleState {
-    pub async fn next_event(&self) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    pub async fn next_event(&self) -> Result<ConsensusWorkerStateEvent, Error> {
         sleep(Duration::from_secs(10)).await;
         Ok(ConsensusWorkerStateEvent::TimedOut)
     }

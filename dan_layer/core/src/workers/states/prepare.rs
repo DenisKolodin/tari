@@ -22,6 +22,7 @@
 
 use std::collections::HashMap;
 
+use anyhow::Error;
 use log::*;
 use tari_common_types::types::PublicKey;
 use tokio::time::{sleep, Duration};
@@ -82,7 +83,7 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         mut chain_tx: TChainDbUnitOfWork,
         state_tx: &mut TStateDbUnitOfWork,
         db_factory: &TSpecification::DbFactory,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    ) -> Result<ConsensusWorkerStateEvent, Error> {
         self.received_new_view_messages.clear();
         let timeout = sleep(timeout);
         futures::pin_mut!(timeout);
@@ -160,7 +161,7 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         payload_processor: &mut TSpecification::PayloadProcessor,
         outbound: &mut TSpecification::OutboundService,
         db_factory: &TSpecification::DbFactory,
-    ) -> Result<Option<ConsensusWorkerStateEvent>, DigitalAssetError> {
+    ) -> Result<Option<ConsensusWorkerStateEvent>, Error> {
         debug!(
             target: LOG_TARGET,
             "Received message as leader:{:?} for view:{}",
@@ -225,7 +226,7 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         chain_tx: &mut TChainDbUnitOfWork,
         chain_storage_service: &TSpecification::ChainStorageService,
         state_tx: &mut TStateDbUnitOfWork,
-    ) -> Result<Option<ConsensusWorkerStateEvent>, DigitalAssetError> {
+    ) -> Result<Option<ConsensusWorkerStateEvent>, Error> {
         debug!(
             target: LOG_TARGET,
             "Received message as replica:{:?} for view:{}",
@@ -247,11 +248,11 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         // The genesis does not extend any node
         if !current_view.view_id().is_genesis() {
             if !self.does_extend(node, justify.node_hash()) {
-                return Err(DigitalAssetError::PreparePhaseCertificateDoesNotExtendNode);
+                return Err(DigitalAssetError::PreparePhaseCertificateDoesNotExtendNode.into());
             }
 
             if !self.is_safe_node(node, justify, chain_tx)? {
-                return Err(DigitalAssetError::PreparePhaseNodeNotSafe);
+                return Err(DigitalAssetError::PreparePhaseNodeNotSafe.into());
             }
         }
 
@@ -325,7 +326,7 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         payload_processor: &mut TSpecification::PayloadProcessor,
         view_id: ViewId,
         state_db: TStateDbUnitOfWork,
-    ) -> Result<HotStuffTreeNode<TSpecification::Payload>, DigitalAssetError> {
+    ) -> Result<HotStuffTreeNode<TSpecification::Payload>, Error> {
         debug!(target: LOG_TARGET, "Creating new proposal for {}", view_id);
 
         // TODO: Artificial delay here to set the block time
@@ -355,11 +356,12 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         proposal: HotStuffTreeNode<TSpecification::Payload>,
         high_qc: QuorumCertificate,
         view_number: ViewId,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         let message = HotStuffMessage::prepare(proposal, Some(high_qc), view_number, self.asset_public_key.clone());
         outbound
             .broadcast(self.node_id.clone(), committee.members.as_slice(), message)
             .await
+            .map_err(Error::from)
     }
 
     fn does_extend(&self, node: &HotStuffTreeNode<TSpecification::Payload>, from: &TreeNodeHash) -> bool {
@@ -383,11 +385,14 @@ impl<TSpecification: ServiceSpecification> Prepare<TSpecification> {
         view_leader: &TSpecification::Addr,
         view_number: ViewId,
         signing_service: &TSpecification::SigningService,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         // TODO: Only send node hash, not the full node
         let mut message = HotStuffMessage::vote_prepare(node, view_number, self.asset_public_key.clone());
         message.add_partial_sig(signing_service.sign(&self.node_id, &message.create_signature_challenge())?);
-        outbound.send(self.node_id.clone(), view_leader.clone(), message).await
+        outbound
+            .send(self.node_id.clone(), view_leader.clone(), message)
+            .await
+            .map_err(Error::from)
     }
 }
 

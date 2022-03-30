@@ -22,6 +22,7 @@
 
 use std::collections::HashMap;
 
+use anyhow::Error;
 use log::*;
 use tari_common_types::types::PublicKey;
 use tokio::time::{sleep, Duration};
@@ -70,7 +71,7 @@ impl<TSpecification: ServiceSpecification> CommitState<TSpecification> {
         outbound_service: &mut TSpecification::OutboundService,
         signing_service: &TSpecification::SigningService,
         mut unit_of_work: TUnitOfWork,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    ) -> Result<ConsensusWorkerStateEvent, Error> {
         self.received_new_view_messages.clear();
         let timeout = sleep(timeout);
         futures::pin_mut!(timeout);
@@ -190,7 +191,7 @@ impl<TSpecification: ServiceSpecification> CommitState<TSpecification> {
         outbound: &mut TSpecification::OutboundService,
         signing_service: &TSpecification::SigningService,
         unit_of_work: &mut TUnitOfWork,
-    ) -> Result<Option<ConsensusWorkerStateEvent>, DigitalAssetError> {
+    ) -> Result<Option<ConsensusWorkerStateEvent>, Error> {
         if let Some(justify) = message.justify() {
             if !justify.matches(HotStuffMessageType::PreCommit, current_view.view_id) {
                 warn!(
@@ -234,9 +235,12 @@ impl<TSpecification: ServiceSpecification> CommitState<TSpecification> {
         view_leader: &TSpecification::Addr,
         view_number: ViewId,
         signing_service: &TSpecification::SigningService,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         let mut message = HotStuffMessage::vote_commit(node, view_number, self.asset_public_key.clone());
         message.add_partial_sig(signing_service.sign(&self.node_id, &message.create_signature_challenge())?);
-        outbound.send(self.node_id.clone(), view_leader.clone(), message).await
+        outbound
+            .send(self.node_id.clone(), view_leader.clone(), message)
+            .await
+            .map_err(Error::from)
     }
 }

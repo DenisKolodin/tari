@@ -22,6 +22,7 @@
 
 use std::{convert::TryFrom, marker::PhantomData};
 
+use anyhow::Error;
 use log::*;
 use tari_common_types::types::COMMITTEE_DEFINITION_ID;
 use tari_comms::types::CommsPublicKey;
@@ -31,7 +32,6 @@ use crate::{
     services::{BaseNodeClient, ServiceSpecification},
     storage::{state::StateDbUnitOfWorkReader, DbFactory},
     workers::{state_sync::StateSynchronizer, states::ConsensusWorkerStateEvent},
-    DigitalAssetError,
 };
 
 const LOG_TARGET: &str = "tari::dan::workers::states::starting";
@@ -54,7 +54,7 @@ impl<TSpecification: ServiceSpecification<Addr = CommsPublicKey>> Synchronizing<
         db_factory: &TSpecification::DbFactory,
         validator_node_client_factory: &TSpecification::ValidatorNodeClientFactory,
         our_address: &TSpecification::Addr,
-    ) -> Result<ConsensusWorkerStateEvent, DigitalAssetError> {
+    ) -> Result<ConsensusWorkerStateEvent, Error> {
         // TODO: The collectibles app does not post a valid initial merkle root for the initial asset checkpoint. So
         // this is always out-of-sync.
         // return Ok(ConsensusWorkerStateEvent::Synchronized);
