@@ -101,7 +101,7 @@ impl<TSpecification: ServiceSpecification<Addr = PublicKey>> ConsensusWorker<TSp
         }
     }
 
-    fn get_current_view(&self) -> Result<View, DigitalAssetError> {
+    fn get_current_view(&self) -> Result<View, Error> {
         Ok(View {
             view_id: self.current_view_id,
             is_leader: self
@@ -358,7 +358,7 @@ impl<TSpecification: ServiceSpecification<Addr = PublicKey>> ConsensusWorker<TSp
     fn transition(
         &mut self,
         event: ConsensusWorkerStateEvent,
-    ) -> Result<(ConsensusWorkerState, ConsensusWorkerState), DigitalAssetError> {
+    ) -> Result<(ConsensusWorkerState, ConsensusWorkerState), Error> {
         use ConsensusWorkerState::*;
         use ConsensusWorkerStateEvent::*;
         let from = self.state;
