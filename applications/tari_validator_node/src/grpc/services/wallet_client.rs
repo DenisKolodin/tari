@@ -22,6 +22,7 @@
 
 use std::net::SocketAddr;
 
+use anyhow::Error;
 use async_trait::async_trait;
 use tari_app_grpc::{tari_rpc as grpc, tari_rpc::CreateFollowOnAssetCheckpointRequest};
 use tari_common_types::types::PublicKey;
@@ -58,7 +59,7 @@ impl WalletClient for GrpcWalletClient {
         checkpoint_unique_id: &[u8],
         state_root: &StateRoot,
         next_committee: Vec<CommsPublicKey>,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         let inner = match self.inner.as_mut() {
             Some(i) => i,
             None => {
