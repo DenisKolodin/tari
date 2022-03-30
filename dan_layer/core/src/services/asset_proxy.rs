@@ -20,6 +20,7 @@
 //  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 //  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use anyhow::Error;
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use log::*;
@@ -50,7 +51,7 @@ pub trait AssetProxy {
         template_id: TemplateId,
         method: String,
         args: Vec<u8>,
-    ) -> Result<(), DigitalAssetError>;
+    ) -> Result<(), Error>;
 
     async fn invoke_read_method(
         &self,
@@ -58,7 +59,7 @@ pub trait AssetProxy {
         template_id: TemplateId,
         method: String,
         args: Vec<u8>,
-    ) -> Result<Option<Vec<u8>>, DigitalAssetError>;
+    ) -> Result<Option<Vec<u8>>, Error>;
 }
 
 enum InvokeType {
@@ -223,7 +224,7 @@ impl<TServiceSpecification: ServiceSpecification<Addr = PublicKey>> AssetProxy
         template_id: TemplateId,
         method: String,
         args: Vec<u8>,
-    ) -> Result<(), DigitalAssetError> {
+    ) -> Result<(), Error> {
         // check if we are processing this asset
         if self.db_factory.get_state_db(asset_public_key)?.is_some() {
             let instruction = Instruction::new(
@@ -237,13 +238,12 @@ impl<TServiceSpecification: ServiceSpecification<Addr = PublicKey>> AssetProxy
                  *     .map_err(|err| Status::invalid_argument("signature was not a valid comsig"))?, */
             );
             let mut mempool = self.mempool.clone();
-            mempool.submit_instruction(instruction).await
+            mempool.submit_instruction(instruction).await?;
         } else {
-            let _result = self
-                .forward_to_committee(asset_public_key, InvokeType::InvokeMethod, template_id, method, args)
+            self.forward_to_committee(asset_public_key, InvokeType::InvokeMethod, template_id, method, args)
                 .await?;
-            Ok(())
         }
+        Ok(())
     }
 
     async fn invoke_read_method(
@@ -252,7 +252,7 @@ impl<TServiceSpecification: ServiceSpecification<Addr = PublicKey>> AssetProxy
         template_id: TemplateId,
         method: String,
         args: Vec<u8>,
-    ) -> Result<Option<Vec<u8>>, DigitalAssetError> {
+    ) -> Result<Option<Vec<u8>>, Error> {
         self.forward_to_committee(
             asset_public_key,
             InvokeType::InvokeReadMethod,
@@ -261,5 +261,6 @@ impl<TServiceSpecification: ServiceSpecification<Addr = PublicKey>> AssetProxy
             args,
         )
         .await
+        .map_err(Error::from)
     }
 }
