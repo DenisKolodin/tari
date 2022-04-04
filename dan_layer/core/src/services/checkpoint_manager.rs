@@ -58,7 +58,7 @@ impl<TWallet: WalletClient> ConcreteCheckpointManager<TWallet> {
 }
 
 #[async_trait]
-impl<TWallet: WalletClient + Sync + Send> CheckpointManager<CommsPublicKey> for ConcreteCheckpointManager<TWallet> {
+impl<TWallet: WalletClient> CheckpointManager<CommsPublicKey> for ConcreteCheckpointManager<TWallet> {
     async fn create_checkpoint(
         &mut self,
         state_root: StateRoot,

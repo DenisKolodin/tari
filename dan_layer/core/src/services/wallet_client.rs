@@ -27,7 +27,7 @@ use tari_comms::types::CommsPublicKey;
 use crate::{models::StateRoot, DigitalAssetError};
 
 #[async_trait]
-pub trait WalletClient {
+pub trait WalletClient: Send + Sync {
     async fn create_new_checkpoint(
         &mut self,
         asset_public_key: &PublicKey,

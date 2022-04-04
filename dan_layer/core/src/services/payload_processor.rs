@@ -51,9 +51,7 @@ impl<TAssetProcessor: AssetProcessor> TariDanPayloadProcessor<TAssetProcessor> {
 }
 
 #[async_trait]
-impl<TAssetProcessor: AssetProcessor + Send + Sync> PayloadProcessor<TariDanPayload>
-    for TariDanPayloadProcessor<TAssetProcessor>
-{
+impl<TAssetProcessor: AssetProcessor> PayloadProcessor<TariDanPayload> for TariDanPayloadProcessor<TAssetProcessor> {
     async fn process_payload<TUnitOfWork: StateDbUnitOfWork>(
         &self,
         payload: &TariDanPayload,
