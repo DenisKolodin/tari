@@ -22,6 +22,7 @@
 
 use std::convert::TryInto;
 
+use anyhow::Error;
 use async_trait::async_trait;
 use log::*;
 use tari_common_types::types::PublicKey;
@@ -220,7 +221,7 @@ impl ValidatorNodeRpcClient for TariCommsValidatorNodeRpcClient {
             .into_iter()
             .map(TryInto::try_into)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(ValidatorNodeClientError::InvalidPeerMessage)?;
+            .map_err(|err: Error| ValidatorNodeClientError::InvalidPeerMessage(err.to_string()))?;
 
         Ok(op_logs)
     }
