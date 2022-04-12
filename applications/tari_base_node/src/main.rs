@@ -21,17 +21,8 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #![warn(missing_docs)]
+#![doc(html_logo_url = "https://www.tari.com/assets/img/base-node.png")]
 
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⣿⣿⣿⣿⣶⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣾⣿⡿⠋⠀⠀⠀⠀⠉⠛⠿⣿⣿⣶⣤⣀⠀⠀⠀⠀⠀⠀⢰⣿⣾⣾⣾⣾⣾⣾⣾⣾⣾⣿⠀⠀⠀⣾⣾⣾⡀⠀⠀⠀⠀⢰⣾⣾⣾⣾⣿⣶⣶⡀⠀⠀⠀⢸⣾⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣶⣶⣤⣄⡀⠀⠀⠀⠀⠀⠉⠛⣿⣿⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⣿⣿⡏⠉⠉⠉⠉⠀⠀⣰⣿⣿⣿⣿⠀⠀⠀⠀⢸⣿⣿⠉⠉⠉⠛⣿⣿⡆⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠈⠙⣿⡿⠿⣿⣿⣿⣶⣶⣤⣤⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀⠀⠀⠀⢠⣿⣿⠃⣿⣿⣷⠀⠀⠀⢸⣿⣿⣀⣀⣀⣴⣿⣿⠃⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣤⠀⠀⠀⢸⣿⡟⠀⠀⠀⠀⠀⠉⣽⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀⠀⠀⠀⣿⣿⣿⣤⣬⣿⣿⣆⠀⠀⢸⣿⣿⣿⣿⣿⡿⠟⠉⠀⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⣿⣤⠀⢸⣿⡟⠀⠀⠀⣠⣾⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀⠀⠀⣾⣿⣿⠿⠿⠿⢿⣿⣿⡀⠀⢸⣿⣿⠙⣿⣿⣿⣄⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⣿⣼⣿⡟⣀⣶⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀⠀⣰⣿⣿⠃⠀⠀⠀⠀⣿⣿⣿⠀⢸⣿⣿⠀⠀⠙⣿⣿⣷⣄⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⣿⣿⣿⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//! ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
-//!
 //! # Tari Base Node
 //!
 //! The Tari Base Node is a major application in the Tari Network
@@ -53,24 +44,26 @@
 //!
 //! ## Commands
 //!
-//! `help` - Displays a list of commands
-//! `get-balance` - Displays the balance of the wallet (available, pending incoming, pending outgoing)
-//! `send-tari` - Sends Tari, the amount needs to be specified, followed by the destination (public key or emoji id) and
-//! an optional message `get-chain-metadata` - Lists information about the blockchain of this Base Node
-//! `list-peers` - Lists information about peers known by this base node
-//! `ban-peer` - Bans a peer
-//! `unban-peer` - Removes a ban for a peer
-//! `list-connections` - Lists active connections to this Base Node
-//! `list-headers` - Lists header information. Either the first header height and the last header height needs to be
-//! specified, or the amount of headers from the top `check-db` - Checks the blockchain database for missing blocks and
-//! headers `calc-timing` - Calculates the time average time taken to mine a given range of blocks
-//! `discover-peer` - Attempts to discover a peer on the network, a public key or emoji id needs to be specified
-//! `get-block` - Retrieves a block, the height of the block needs to be specified
-//! `get-mempool-stats` - Displays information about the mempool
-//! `get-mempool-state` - Displays state information for the mempool
-//! `whoami` - Displays identity information about this Base Node and it's wallet
-//! `quit` - Exits the Base Node
-//! `exit` - Same as quit
+//! - `help` - Displays a list of commands
+//! - `get-balance` - Displays the balance of the wallet (available, pending incoming, pending outgoing)
+//! - `send-tari` - Sends Tari, the amount needs to be specified, followed by the destination (public key or emoji id)
+//!   and an optional message
+//! - `get-chain-metadata` - Lists information about the blockchain of this Base Node
+//! - `list-peers` - Lists information about peers known by this base node
+//! - `ban-peer` - Bans a peer
+//! - `unban-peer` - Removes a ban for a peer
+//! - `list-connections` - Lists active connections to this Base Node
+//! - `list-headers` - Lists header information. Either the first header height and the last header height needs to be
+//!   specified, or the amount of headers from the top
+//! - `check-db` - Checks the blockchain database for missing blocks and headers
+//! - `calc-timing` - Calculates the time average time taken to mine a given range of blocks
+//! - `discover-peer` - Attempts to discover a peer on the network, a public key or emoji id needs to be specified
+//! - `get-block` - Retrieves a block, the height of the block needs to be specified
+//! - `get-mempool-stats` - Displays information about the mempool
+//! - `get-mempool-state` - Displays state information for the mempool
+//! - `whoami` - Displays identity information about this Base Node and it's wallet
+//! - `quit` - Exits the Base Node
+//! - `exit` - Same as quit
 
 /// Used to display tabulated data
 #[macro_use]
