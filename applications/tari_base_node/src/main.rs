@@ -22,6 +22,7 @@
 
 #![warn(missing_docs)]
 #![doc(html_logo_url = "https://www.tari.com/assets/img/base-node.png")]
+#![doc(html_favicon_url = "https://www.tari.com/assets/img/base-node.png")]
 
 //! # Tari Base Node
 //!
@@ -29,18 +30,25 @@
 //!
 //! ## Running the Tari Base Node
 //!
-//! Tor needs to be started first
-//! ```
+//! Tor needs to be started first:
+//!
+//! ```sh
 //! tor --allow-missing-torrc --ignore-missing-torrc \
 //!  --clientonly 1 --socksport 9050 --controlport 127.0.0.1:9051 \
 //!  --log "warn stdout" --clientuseipv6 1
 //! ```
 //!
-//! For the first run
-//! `cargo run tari_base_node -- --init
+//! For the first run:
 //!
-//! Subsequent runs
-//! `cargo run tari_base_node`
+//! ```sh
+//! cargo run tari_base_node -- --init
+//! ```
+//!
+//! Subsequent runs:
+//!
+//! ```sh
+//! cargo run tari_base_node
+//! ```
 //!
 //! ## Commands
 //!
