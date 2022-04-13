@@ -73,7 +73,8 @@ impl Default for BaseNodeStateMachineConfig {
 /// A Tari full node, aka Base Node.
 ///
 /// This service is essentially a finite state machine that synchronises its blockchain state with its peers and
-/// then listens for new blocks to add to the blockchain. See the [SynchronizationState] documentation for more details.
+/// then listens for new blocks to add to the blockchain.
+/// See the [SynchronizationState](RFC/src/RFC-0140_Syncing_and_seeding.md) documentation for more details.
 ///
 /// This struct holds fields that will be used by all the various FSM state instances, including the local blockchain
 /// database and hooks to the p2p network

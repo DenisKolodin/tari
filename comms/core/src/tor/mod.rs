@@ -22,15 +22,17 @@
 
 //! # Tor Hidden Services and Control Port Client
 //!
-//! These modules interact with the Tor Control Port to create hidden services on-the-fly.
+//! These modules interact with the Tor Control Port to create hidden
+//! services on-the-fly.h
 //!
-//! The [client](crate::tor::client) module contains the client library for the Tor Control Port. You can find the spec
+//! The [`control_client`] module contains the client library
+//! for the Tor Control Port. You can find the spec
 //! [here](https://gitweb.torproject.org/torspec.git/tree/control-spec.txt).
 //!
-//! The [hidden_service](crate::tor::hidden_service) module contains code which sets up hidden services required for
-//! `tari_comms` to function over Tor.
+//! The [`hidden_service`] module contains code which
+//! sets up hidden services required for `tari_comms` to function over Tor.
 
-mod control_client;
+pub mod control_client;
 pub use control_client::{
     Authentication,
     KeyBlob,
@@ -42,7 +44,7 @@ pub use control_client::{
     TorControlPortClient,
 };
 
-mod hidden_service;
+pub mod hidden_service;
 pub use hidden_service::{
     HiddenService,
     HiddenServiceBuilder,

@@ -182,8 +182,11 @@ where
         true
     }
 
-    /// Compress the roaring bitmap mapping deleted nodes. You never have to call this method unless you have been
-    /// calling [delete_and_compress] with `compress` set to `false` ahead of a call to [get_merkle_root].
+    /// Compress the roaring bitmap mapping deleted nodes.
+    ///
+    /// You never have to call this method unless you have been
+    /// calling [delete_and_compress] with `compress` set to
+    /// `false` ahead of a call to [`get_merkle_root`](MutableMmr::get_merkle_root).
     pub fn compress(&mut self) -> bool {
         self.deleted.run_optimize()
     }

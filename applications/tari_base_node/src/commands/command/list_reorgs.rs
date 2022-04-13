@@ -31,7 +31,7 @@ use crate::table::Table;
 /// List tracked reorgs
 /// This feature must be enabled by
 /// setting `track_reorgs = true` in
-/// the [base_node] section of your config."
+/// the `[base_node]` section of your config."
 #[derive(Debug, Parser)]
 pub struct Args {}
 

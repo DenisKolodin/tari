@@ -24,8 +24,8 @@
 //! transaction, or other validation tasks. Validators implement the [Validation] trait and can be chained together
 //! in a [ValidationPipeline] object to carry out complex validation routines.
 //!
-//! This module also defines a mock [MockValidator] that is useful for testing components that require validation
-//! without having to bring in all sorts of blockchain and communications paraphernalia.
+//! This module also defines a mock [`MockValidator`](mocks::MockValidator) that is useful for testing components that
+//! require validation without having to bring in all sorts of blockchain and communications paraphernalia.
 
 mod error;
 pub use error::ValidationError;

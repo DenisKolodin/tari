@@ -201,9 +201,11 @@ impl SenderTransactionProtocol {
         }
     }
 
-    /// Returns the finalized transaction if the protocol is in the Finalised state and consumes the protocol object.
-    /// Otherwise it returns an `InvalidStateError`. To keep the object and return a reference to the transaction, see
-    /// [get_transaction].
+    /// Returns the finalized transaction if the protocol is in
+    /// the Finalised state and consumes the protocol object.
+    /// Otherwise it returns an `InvalidStateError`. To keep
+    /// the object and return a reference to the transaction, see
+    /// [`get_transaction`](SenderTransactionProtocol::get_transaction).
     pub fn take_transaction(self) -> Result<Transaction, TPE> {
         match self.state {
             SenderState::FinalizedTransaction(tx) => Ok(tx),
