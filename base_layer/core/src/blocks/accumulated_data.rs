@@ -50,6 +50,7 @@ use crate::{
 
 const LOG_TARGET: &str = "c::bn::acc_data";
 
+/// An accumulated data of a block.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BlockAccumulatedData {
     pub(crate) kernels: PrunedHashSet,
@@ -121,6 +122,7 @@ impl Display for BlockAccumulatedData {
     }
 }
 
+/// An information for updating a block.
 #[derive(Debug, Clone, Default)]
 pub struct UpdateBlockAccumulatedData {
     pub kernel_hash_set: Option<PrunedHashSet>,
@@ -334,6 +336,7 @@ impl BlockHeaderAccumulatedDataBuilder<'_> {
     }
 }
 
+/// Accumulated data of a block header.
 // TODO: Find a better name and move into `core::blocks` mod
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 pub struct BlockHeaderAccumulatedData {

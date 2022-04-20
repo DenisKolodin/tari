@@ -68,6 +68,7 @@ use crate::{
     proof_of_work::{PowAlgorithm, PowError, ProofOfWork},
 };
 
+/// Block header validation error.
 #[derive(Debug, Error)]
 pub enum BlockHeaderValidationError {
     #[error("The Genesis block header is incorrectly chained")]

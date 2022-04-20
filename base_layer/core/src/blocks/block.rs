@@ -57,6 +57,7 @@ use crate::{
     },
 };
 
+/// Block validation error.
 #[derive(Clone, Debug, Error)]
 pub enum BlockValidationError {
     #[error("A transaction in the block failed to validate: `{0}`")]
@@ -170,6 +171,7 @@ impl Display for Block {
     }
 }
 
+/// A builder for a block.
 #[derive(Default)]
 pub struct BlockBuilder {
     header: BlockHeader,
@@ -288,6 +290,7 @@ impl ConsensusDecoding for Block {
 }
 
 //---------------------------------- NewBlock --------------------------------------------//
+/// A new block data.
 pub struct NewBlock {
     /// The block header.
     pub header: BlockHeader,

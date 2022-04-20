@@ -19,6 +19,11 @@
 // SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#![warn(missing_docs)]
+#![doc(html_logo_url = "https://www.tari.com/assets/img/base-node.png")]
+#![doc(html_favicon_url = "https://www.tari.com/assets/img/base-node.png")]
+
 #[macro_use]
 extern crate bitflags;
 
@@ -51,6 +56,7 @@ pub mod transactions;
 
 mod common;
 
+#[doc(hidden)]
 #[allow(clippy::ptr_offset_with_cast)]
 #[allow(clippy::assign_op_pattern)]
 #[allow(clippy::manual_range_contains)]

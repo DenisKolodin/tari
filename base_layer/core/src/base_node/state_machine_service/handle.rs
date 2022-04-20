@@ -27,6 +27,7 @@ use tokio::sync::{broadcast, watch};
 
 use crate::base_node::state_machine_service::states::{StateEvent, StatusInfo};
 
+/// A handle to control the state machine.
 #[derive(Clone)]
 pub struct StateMachineHandle {
     state_change_event_subscriber: broadcast::Sender<Arc<StateEvent>>,

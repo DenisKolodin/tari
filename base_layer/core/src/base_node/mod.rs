@@ -53,6 +53,7 @@ pub use state_machine_service::{BaseNodeStateMachine, BaseNodeStateMachineConfig
 #[cfg(any(feature = "base_node", feature = "base_node_proto"))]
 pub mod sync;
 
+#[doc(hidden)]
 #[cfg(feature = "base_node")]
 pub use sync::{
     rpc::{create_base_node_sync_rpc_service, BaseNodeSyncService},
