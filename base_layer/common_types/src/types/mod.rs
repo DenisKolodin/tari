@@ -57,6 +57,9 @@ pub type PublicKey = RistrettoPublicKey;
 pub type PrivateKey = RistrettoSecretKey;
 pub type BlindingFactor = RistrettoSecretKey;
 
+// TODO: Use ([u8; 8], [u8; 16])
+pub type CustomBlindingFactor = Vec<u8>;
+
 /// Define the hash function that will be used to produce a signature challenge
 pub type SignatureHasher = Blake256;
 

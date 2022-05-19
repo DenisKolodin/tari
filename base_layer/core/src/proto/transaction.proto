@@ -75,6 +75,8 @@ message TransactionOutput {
     bytes covenant = 7;
     // Version
     uint32 version = 8;
+    // A custom blinding factor
+    bytes custom_key = 9;
 }
 
 // Options for UTXOs

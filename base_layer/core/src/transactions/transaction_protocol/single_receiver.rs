@@ -129,6 +129,10 @@ impl SingleReceiverTransactionProtocol {
             sender_info.script.clone(),
             sender_info.sender_offset_public_key.clone(),
             partial_metadata_signature,
+            /* QUESTION:
+            How to produce it here?
+            How to encrypt if we have no access to any encryption service? Add it here?
+             */
             sender_info.covenant.clone(),
         );
         Ok(output)

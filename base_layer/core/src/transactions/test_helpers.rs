@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use rand::rngs::OsRng;
 use tari_common::configuration::Network;
-use tari_common_types::types::{Commitment, CommitmentFactory, PrivateKey, PublicKey, Signature};
+use tari_common_types::types::{Commitment, CommitmentFactory, CustomBlindingFactor, PrivateKey, PublicKey, Signature};
 use tari_crypto::{
     commitment::HomomorphicCommitmentFactory,
     common::Blake256,
@@ -788,6 +788,10 @@ pub fn create_utxo(
         script.clone(),
         offset_keys.pk,
         metadata_sig,
+        /* QUESTION:
+        Probably good place to start implementing it + encryption
+         */
+        CustomBlindingFactor::default(),
         covenant.clone(),
     );
     (utxo, keys.k, offset_keys.k)

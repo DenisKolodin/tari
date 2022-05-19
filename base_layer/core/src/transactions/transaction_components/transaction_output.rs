@@ -39,6 +39,7 @@ use tari_common_types::types::{
     ComSignature,
     Commitment,
     CommitmentFactory,
+    CustomBlindingFactor,
     PrivateKey,
     PublicKey,
     RangeProof,
@@ -79,6 +80,12 @@ pub struct TransactionOutput {
     pub version: TransactionOutputVersion,
     /// Options for an output's structure or use
     pub features: OutputFeatures,
+    /* QUESTION:
+    enum OutputCommitment {
+        Commitment(Commitment),
+        Custom(Commitment, Key(8, 16)?),
+    }
+     */
     /// The homomorphic commitment representing the output amount
     pub commitment: Commitment,
     /// A proof that the commitment is in the right range
@@ -89,6 +96,11 @@ pub struct TransactionOutput {
     pub sender_offset_public_key: PublicKey,
     /// UTXO signature with the script offset private key, k_O
     pub metadata_signature: ComSignature,
+    /* QUESTION
+    Or keep it here (probably rename the type)
+     */
+    /// A custom blinding factor
+    pub custom_key: CustomBlindingFactor,
     /// The covenant that will be executed when spending this output
     #[serde(default)]
     pub covenant: Covenant,
@@ -106,6 +118,7 @@ impl TransactionOutput {
         script: TariScript,
         sender_offset_public_key: PublicKey,
         metadata_signature: ComSignature,
+        custom_key: CustomBlindingFactor,
         covenant: Covenant,
     ) -> TransactionOutput {
         TransactionOutput {
@@ -116,6 +129,7 @@ impl TransactionOutput {
             script,
             sender_offset_public_key,
             metadata_signature,
+            custom_key,
             covenant,
         }
     }
@@ -127,6 +141,7 @@ impl TransactionOutput {
         script: TariScript,
         sender_offset_public_key: PublicKey,
         metadata_signature: ComSignature,
+        custom_key: CustomBlindingFactor,
         covenant: Covenant,
     ) -> TransactionOutput {
         TransactionOutput::new(
@@ -137,6 +152,7 @@ impl TransactionOutput {
             script,
             sender_offset_public_key,
             metadata_signature,
+            custom_key,
             covenant,
         )
     }
@@ -396,6 +412,10 @@ impl Default for TransactionOutput {
             TariScript::default(),
             PublicKey::default(),
             ComSignature::default(),
+            /* QUESTION:
+            What is the default value?
+             */
+            CustomBlindingFactor::default(),
             Covenant::default(),
         )
     }
@@ -426,6 +446,10 @@ impl Display for TransactionOutput {
 
 impl PartialOrd for TransactionOutput {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        /*
+        QUESTION:
+        Do I have to take tha value into account here?
+         */
         self.commitment.partial_cmp(&other.commitment)
     }
 }
@@ -445,6 +469,9 @@ impl ConsensusEncoding for TransactionOutput {
         written += self.script.consensus_encode(writer)?;
         written += self.sender_offset_public_key.consensus_encode(writer)?;
         written += self.metadata_signature.consensus_encode(writer)?;
+        /* QUESTION:
+        In what format write? Binary?
+         */
         written += self.covenant.consensus_encode(writer)?;
         Ok(written)
     }
@@ -459,6 +486,7 @@ impl ConsensusDecoding for TransactionOutput {
         let script = TariScript::consensus_decode(reader)?;
         let sender_offset_public_key = PublicKey::consensus_decode(reader)?;
         let metadata_signature = ComSignature::consensus_decode(reader)?;
+        let custom_key = todo!(); // CustomBlindingFactor::consensus_decode(reader)?;
         let covenant = Covenant::consensus_decode(reader)?;
         let output = TransactionOutput::new(
             version,
@@ -468,6 +496,7 @@ impl ConsensusDecoding for TransactionOutput {
             script,
             sender_offset_public_key,
             metadata_signature,
+            custom_key,
             covenant,
         );
         Ok(output)

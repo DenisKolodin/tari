@@ -28,6 +28,7 @@ use tari_common_types::types::{
     BulletRangeProof,
     ComSignature,
     Commitment,
+    CustomBlindingFactor,
     PrivateKey,
     PublicKey,
     Signature,
@@ -114,6 +115,7 @@ fn get_igor_genesis_block_raw() -> Block {
             Default::default(),
             // For genesis block: Metadata signature will never be checked
             Default::default(),
+            CustomBlindingFactor::default(),
             Covenant::default(),
         )],
         vec![TransactionKernel::new_current_version(
@@ -257,6 +259,7 @@ fn get_dibbler_genesis_block_raw() -> Block {
             PublicKey::default(),
             // For genesis block: Metadata signature will never be checked
             ComSignature::default(),
+            CustomBlindingFactor::default(),
             // Covenant
             Covenant::default()
         );
