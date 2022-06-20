@@ -101,7 +101,9 @@ async fn it_checks_exactly_one_coinbase() {
 
     let (mut block, coinbase) = blockchain.create_unmined_block(block_spec!("A1", parent: "GB"));
 
-    let (_, coinbase_output) = CoinbaseBuilder::new(CryptoFactories::default())
+    let factories = CryptoFactories::default();
+
+    let (_, coinbase_output) = CoinbaseBuilder::new(factories)
         .with_block_height(1)
         .with_fees(0.into())
         .with_nonce(0.into())

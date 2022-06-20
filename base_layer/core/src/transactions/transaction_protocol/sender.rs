@@ -897,7 +897,10 @@ mod test {
         .unwrap();
         let covenant = Covenant::default();
 
-        let encrypted_value = EncryptedValue::todo_encrypt_from(value);
+        // Encrypted value
+        let encryption_key = PrivateKey::random(&mut OsRng);
+        let encrypted_value = EncryptedValue::encrypt_value(&encryption_key, &commitment, value.into()).unwrap();
+
         let partial_metadata_signature = TransactionOutput::create_partial_metadata_signature(
             TransactionOutputVersion::get_current_version(),
             value.into(),
@@ -1249,6 +1252,7 @@ mod test {
         let rewind_data = RewindData {
             rewind_blinding_key: rewind_blinding_key.clone(),
             recovery_byte_key: PrivateKey::random(&mut OsRng),
+            encryption_key: PrivateKey::random(&mut OsRng),
         };
 
         let script = script!(Nop);
@@ -1310,13 +1314,26 @@ mod test {
 
         // If the first output isn't alice's then the second must be
         // TODO: Fix this logic when 'encrypted_value.todo_decrypt()' is fixed only one of these will be possible
-        let committed_value_0 = MicroTari::from(tx.body.outputs()[0].encrypted_value.todo_decrypt());
-        let committed_value_1 = MicroTari::from(tx.body.outputs()[1].encrypted_value.todo_decrypt());
+        let output_0 = &tx.body.outputs()[0];
+        let output_1 = &tx.body.outputs()[1];
+
+        let committed_value_0 = EncryptedValue::decrypt_value(
+            &a.rewind_data.encryption_key,
+            &output_0.commitment,
+            &output_0.encrypted_value,
+        )
+        .unwrap();
+        let committed_value_1 = EncryptedValue::decrypt_value(
+            &a.rewind_data.encryption_key,
+            &output_1.commitment,
+            &output_1.encrypted_value,
+        )
+        .unwrap();
         // TODO: Fix this logic when 'encrypted_value.todo_decrypt()' is fixed only one of these will be possible
-        let blinding_factor_0 = tx.body.outputs()[0]
+        let blinding_factor_0 = output_0
             .recover_mask(&factories.range_proof, &rewind_blinding_key)
             .unwrap();
-        let blinding_factor_1 = tx.body.outputs()[1]
+        let blinding_factor_1 = output_1
             .recover_mask(&factories.range_proof, &rewind_blinding_key)
             .unwrap();
         // TODO: Fix this logic when 'encrypted_value.todo_decrypt()' is fixed only one of these will be possible

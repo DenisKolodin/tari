@@ -234,9 +234,14 @@ async fn setup_output_manager_service<T: OutputManagerBackend + 'static, U: KeyM
         .get_key_at_index(OutputManagerKeyManagerBranch::RecoveryByte.get_branch_key(), 0)
         .await
         .unwrap();
+    let encryption_key = key_manager
+        .get_key_at_index(OutputManagerKeyManagerBranch::ValueEncryption.get_branch_key(), 0)
+        .await
+        .unwrap();
     let rewind_data = RewindData {
         rewind_blinding_key,
         recovery_byte_key,
+        encryption_key,
     };
 
     task::spawn(async move { output_manager_service.start().await.unwrap() });
@@ -1268,7 +1273,13 @@ async fn handle_coinbase_with_bulletproofs_rewinding() {
 
     let output = tx3.body.outputs()[0].clone();
 
-    assert_eq!(output.encrypted_value.todo_decrypt(), value3.as_u64());
+    let decrypted = EncryptedValue::decrypt_value(
+        &oms.rewind_data.encryption_key,
+        &output.commitment,
+        &output.encrypted_value,
+    )
+    .unwrap();
+    assert_eq!(decrypted, value3);
 }
 
 #[tokio::test]
@@ -2063,7 +2074,18 @@ async fn scan_for_recovery_test() {
         let commitment = factories.commitment.commit_value(&spending_key_result.key, amount);
         let mut features = OutputFeatures::default();
         features.update_recovery_byte(&commitment, Some(&oms.rewind_data));
-        let encrypted_value = EncryptedValue::todo_encrypt_from(amount);
+
+        let encryption_key = oms
+            .key_manager_handler
+            .get_key_at_index(
+                OutputManagerKeyManagerBranch::ValueEncryption.get_branch_key(),
+                // TODO: Index?
+                0,
+            )
+            .await
+            .unwrap();
+        let encrypted_value = EncryptedValue::encrypt_value(&encryption_key, &commitment, amount.into()).unwrap();
+
         let uo = UnblindedOutput::new_current_version(
             MicroTari::from(amount),
             spending_key_result.key,
@@ -2107,9 +2129,17 @@ async fn scan_for_recovery_test() {
         .get_key_at_index(OutputManagerKeyManagerBranch::RecoveryByte.get_branch_key(), 0)
         .await
         .unwrap();
+
+    let encryption_key = oms
+        .key_manager_handler
+        .get_key_at_index(OutputManagerKeyManagerBranch::ValueEncryption.get_branch_key(), 0)
+        .await
+        .unwrap();
+
     let other_rewind_data = RewindData {
         rewind_blinding_key: PrivateKey::random(&mut OsRng),
         recovery_byte_key,
+        encryption_key,
     };
 
     let non_rewindable_outputs: Vec<TransactionOutput> = non_rewindable_unblinded_outputs

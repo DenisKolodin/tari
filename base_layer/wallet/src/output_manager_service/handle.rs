@@ -25,13 +25,14 @@ use std::{fmt, fmt::Formatter, sync::Arc};
 use aes_gcm::Aes256Gcm;
 use tari_common_types::{
     transaction::TxId,
-    types::{HashOutput, PrivateKey, PublicKey},
+    types::{Commitment, HashOutput, PrivateKey, PublicKey},
 };
 use tari_core::{
     covenants::Covenant,
     transactions::{
         tari_amount::MicroTari,
         transaction_components::{
+            EncryptedValue,
             OutputFeatures,
             Transaction,
             TransactionOutput,
@@ -137,6 +138,8 @@ pub enum OutputManagerRequest {
     CreateClaimShaAtomicSwapTransaction(HashOutput, PublicKey, MicroTari),
     CreateHtlcRefundTransaction(HashOutput, MicroTari),
     GetOutputStatusesByTxId(TxId),
+    EncryptValue(Commitment, MicroTari),
+    DecryptValue(Commitment, EncryptedValue),
 }
 
 impl fmt::Display for OutputManagerRequest {
@@ -217,6 +220,8 @@ impl fmt::Display for OutputManagerRequest {
             ),
 
             GetOutputStatusesByTxId(t) => write!(f, "GetOutputStatusesByTxId: {}", t),
+            EncryptValue(_, v) => write!(f, "EncryptValue: {}", v),
+            DecryptValue(_, _) => write!(f, "DecryptValue"),
         }
     }
 }
@@ -256,6 +261,8 @@ pub enum OutputManagerResponse {
     CoinbaseAbandonedSet,
     ClaimHtlcTransaction((TxId, MicroTari, MicroTari, Transaction)),
     OutputStatusesByTxId(OutputStatusesByTxId),
+    ValueEncrypted(EncryptedValue),
+    ValueDecrypted(MicroTari),
 }
 
 pub type OutputManagerEventSender = broadcast::Sender<Arc<OutputManagerEvent>>;
@@ -840,6 +847,36 @@ impl OutputManagerHandle {
             .await??
         {
             OutputManagerResponse::OutputStatusesByTxId(output_statuses_by_tx_id) => Ok(output_statuses_by_tx_id),
+            _ => Err(OutputManagerError::UnexpectedApiResponse),
+        }
+    }
+
+    pub async fn encrypt_value(
+        &mut self,
+        commitment: Commitment,
+        amount: MicroTari,
+    ) -> Result<EncryptedValue, OutputManagerError> {
+        match self
+            .handle
+            .call(OutputManagerRequest::EncryptValue(commitment, amount))
+            .await??
+        {
+            OutputManagerResponse::ValueEncrypted(value) => Ok(value),
+            _ => Err(OutputManagerError::UnexpectedApiResponse),
+        }
+    }
+
+    pub async fn decrypt_value(
+        &mut self,
+        commitment: Commitment,
+        value: EncryptedValue,
+    ) -> Result<MicroTari, OutputManagerError> {
+        match self
+            .handle
+            .call(OutputManagerRequest::DecryptValue(commitment, value))
+            .await??
+        {
+            OutputManagerResponse::ValueDecrypted(value) => Ok(value),
             _ => Err(OutputManagerError::UnexpectedApiResponse),
         }
     }

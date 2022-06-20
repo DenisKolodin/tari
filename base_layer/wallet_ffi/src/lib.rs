@@ -1144,14 +1144,53 @@ pub unsafe extern "C" fn encrypted_value_as_bytes(
 /// memory leak
 #[no_mangle]
 pub unsafe extern "C" fn encrypted_value_encrypt(
+    wallet: *mut TariWallet,
+    commitment_bytes: *const ByteVector,
     amount: c_ulonglong,
     error_out: *mut c_int,
 ) -> *mut TariEncryptedValue {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
 
-    let encrypted_value = TariEncryptedValue::todo_encrypt_from(amount);
-    Box::into_raw(Box::new(encrypted_value))
+    if wallet.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("wallet".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return ptr::null_mut();
+    }
+
+    if commitment_bytes.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("commitment_bytes".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return ptr::null_mut();
+    }
+
+    let commitment = match Commitment::from_bytes(&(*commitment_bytes).0.clone()) {
+        Ok(commitment) => commitment,
+        Err(e) => {
+            error!(target: LOG_TARGET, "Error creating a commitment from bytes: {:?}", e);
+            error = LibWalletError::from(e).code;
+            ptr::swap(error_out, &mut error as *mut c_int);
+            return ptr::null_mut();
+        },
+    };
+
+    let encrypted_value = (*wallet).runtime.block_on(async move {
+        (*wallet)
+            .wallet
+            .output_manager_service
+            .encrypt_value(commitment, MicroTari(amount))
+            .await
+    });
+
+    match encrypted_value {
+        Ok(value) => Box::into_raw(Box::new(value)),
+        Err(_) => {
+            // TODO: Add new error variant?
+            error = LibWalletError::from(InterfaceError::EncryptionError("value decryption failed".to_string())).code;
+            ptr::swap(error_out, &mut error as *mut c_int);
+            ptr::null_mut()
+        },
+    }
 }
 
 /// Creates an amount from a TariEncryptedValue
@@ -1168,11 +1207,26 @@ pub unsafe extern "C" fn encrypted_value_encrypt(
 /// memory leak
 #[no_mangle]
 pub unsafe extern "C" fn encrypted_value_decrypt(
+    wallet: *mut TariWallet,
+    commitment_bytes: *const ByteVector,
     encrypted_value: *const TariEncryptedValue,
     error_out: *mut c_int,
 ) -> c_ulonglong {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
+
+    // TODO: Add macros here
+    if wallet.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("wallet".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return 0;
+    }
+
+    if commitment_bytes.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("commitment_bytes".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return 0;
+    }
 
     if encrypted_value.is_null() {
         error = LibWalletError::from(InterfaceError::NullError("encrypted_value".to_string())).code;
@@ -1180,8 +1234,34 @@ pub unsafe extern "C" fn encrypted_value_decrypt(
         return 0;
     }
 
-    let encrypted_value = (*encrypted_value).clone();
-    encrypted_value.todo_decrypt() as c_ulonglong
+    let commitment = match Commitment::from_bytes(&(*commitment_bytes).0.clone()) {
+        Ok(commitment) => commitment,
+        Err(e) => {
+            error!(target: LOG_TARGET, "Error creating a commitment from bytes: {:?}", e);
+            error = LibWalletError::from(e).code;
+            ptr::swap(error_out, &mut error as *mut c_int);
+            return 0;
+        },
+    };
+
+    let decrypted_value = (*wallet).runtime.block_on(async move {
+        let value = (*encrypted_value).clone();
+        (*wallet)
+            .wallet
+            .output_manager_service
+            .decrypt_value(commitment, value)
+            .await
+    });
+
+    match decrypted_value {
+        Ok(value) => u64::from(value) as c_ulonglong,
+        Err(_) => {
+            // TODO: Add new error variant?
+            error = LibWalletError::from(InterfaceError::EncryptionError("value decryption failed".to_string())).code;
+            ptr::swap(error_out, &mut error as *mut c_int);
+            0
+        },
+    }
 }
 
 /// Frees memory for a TariEncryptedValue
@@ -7192,12 +7272,12 @@ mod test {
     use tari_common_types::{emoji, transaction::TransactionStatus};
     use tari_core::{
         covenant,
-        transactions::{
-            test_helpers::{create_test_input, create_unblinded_output, TestParams},
-            transaction_components::EncryptedValue,
-        },
+        transactions::test_helpers::{create_test_input, create_unblinded_output, TestParams},
     };
-    use tari_crypto::ristretto::pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory;
+    use tari_crypto::{
+        commitment::HomomorphicCommitmentFactory,
+        ristretto::pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
+    };
     use tari_key_manager::{mnemonic::MnemonicLanguage, mnemonic_wordlists};
     use tari_test_utils::random;
     use tari_wallet::{
@@ -7763,9 +7843,72 @@ mod test {
         unsafe {
             let mut error = 0;
             let error_ptr = &mut error as *mut c_int;
+            let mut recovery_in_progress = true;
+            let recovery_in_progress_ptr = &mut recovery_in_progress as *mut bool;
+
+            let _secret_key_alice = private_key_generate();
+            let db_name_alice = CString::new(random::string(8).as_str()).unwrap();
+            let db_name_alice_str: *const c_char = CString::into_raw(db_name_alice) as *const c_char;
+            let alice_temp_dir = tempdir().unwrap();
+            let db_path_alice = CString::new(alice_temp_dir.path().to_str().unwrap()).unwrap();
+            let db_path_alice_str: *const c_char = CString::into_raw(db_path_alice) as *const c_char;
+            let transport_config_alice = transport_memory_create();
+            let address_alice = transport_memory_get_address(transport_config_alice, error_ptr);
+            let address_alice_str = CStr::from_ptr(address_alice).to_str().unwrap().to_owned();
+            let address_alice_str: *const c_char = CString::new(address_alice_str).unwrap().into_raw() as *const c_char;
+            let network = CString::new(NETWORK_STRING).unwrap();
+            let network_str: *const c_char = CString::into_raw(network) as *const c_char;
+
+            let alice_config = comms_config_create(
+                address_alice_str,
+                transport_config_alice,
+                db_name_alice_str,
+                db_path_alice_str,
+                20,
+                10800,
+                error_ptr,
+            );
+
+            let wallet = wallet_create(
+                alice_config,
+                ptr::null(),
+                0,
+                0,
+                ptr::null(),
+                ptr::null(),
+                network_str,
+                received_tx_callback,
+                received_tx_reply_callback,
+                received_tx_finalized_callback,
+                broadcast_callback,
+                mined_callback,
+                mined_unconfirmed_callback,
+                scanned_callback,
+                scanned_unconfirmed_callback,
+                transaction_send_result_callback,
+                tx_cancellation_callback,
+                txo_validation_complete_callback,
+                contacts_liveness_data_updated_callback,
+                balance_updated_callback,
+                transaction_validation_complete_callback,
+                saf_messages_received_callback,
+                connectivity_status_callback,
+                recovery_in_progress_ptr,
+                error_ptr,
+            );
 
             let amount = 1234u64;
-            let expected_encrypted_value = EncryptedValue::todo_encrypt_from(amount);
+            let test_params = TestParams::new();
+            let commitment = CryptoFactories::default()
+                .commitment
+                .commit_value(&test_params.spend_key, amount);
+            let commitment_bytes = Box::into_raw(Box::new(ByteVector(commitment.to_vec())));
+
+            let encrypted_value_0 = encrypted_value_encrypt(wallet, commitment_bytes, amount as c_ulonglong, error_ptr);
+            assert_eq!(error, 0);
+
+            let expected_encrypted_value = (*encrypted_value_0).clone();
+
             let encrypted_value_bytes =
                 Box::into_raw(Box::new(ByteVector(expected_encrypted_value.as_bytes().to_vec())));
 
@@ -7784,19 +7927,17 @@ mod test {
             assert_eq!(error, 0);
             assert_eq!(*encrypted_value_2, expected_encrypted_value);
 
-            let encrypted_value_3 = encrypted_value_encrypt(amount as c_ulonglong, error_ptr);
+            let expected_decrypted_value =
+                encrypted_value_decrypt(wallet, commitment_bytes, encrypted_value_0, error_ptr);
             assert_eq!(error, 0);
-            assert_eq!(*encrypted_value_3, expected_encrypted_value);
+            assert_eq!(expected_decrypted_value, amount as c_ulonglong);
 
-            let decrypted_value_3 = encrypted_value_decrypt(encrypted_value_3, error_ptr);
-            assert_eq!(error, 0);
-            assert_eq!(decrypted_value_3, amount as c_ulonglong);
-
-            encrypted_value_destroy(encrypted_value_1);
+            byte_vector_destroy(commitment_bytes);
             encrypted_value_destroy(encrypted_value_2);
-            encrypted_value_destroy(encrypted_value_3);
-            byte_vector_destroy(encrypted_value_bytes);
+            encrypted_value_destroy(encrypted_value_1);
             byte_vector_destroy(encrypted_value_1_as_bytes);
+            byte_vector_destroy(encrypted_value_bytes);
+            encrypted_value_destroy(encrypted_value_0);
         }
     }
 
@@ -8682,12 +8823,13 @@ mod test {
             let utxo_1;
             loop {
                 let test_params = TestParams::new();
-                let utxo_temp = create_unblinded_output(
-                    script!(Nop),
-                    default_features.clone(),
-                    &test_params,
-                    MicroTari::from(100_000),
-                );
+                let amount = 100_000;
+                let utxo_temp =
+                    create_unblinded_output(script!(Nop), default_features.clone(), &test_params, MicroTari(amount));
+                // let encrypted_value_1 = encrypted_value_encrypt(wallet_ptr, amount, error_ptr);
+                // let decrypted = encrypted_value_decrypt(wallet_ptr, encrypted_value_1, error_ptr);
+                // encrypted_value_destroy(encrypted_value_1);
+                // assert_eq!(decrypted, amount);
                 if utxo_temp.features.recovery_byte != default_features.recovery_byte {
                     utxo_1 = utxo_temp;
                     break;

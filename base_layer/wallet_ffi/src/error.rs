@@ -55,6 +55,8 @@ pub enum InterfaceError {
     InvalidArgument(String),
     #[error("Balance Unavailable")]
     BalanceError,
+    #[error("An error has occurred due to value encryption: `{0}`")]
+    EncryptionError(String),
 }
 
 /// This struct is meant to hold an error for use by FFI client applications. The error has an integer code and string
@@ -104,6 +106,10 @@ impl From<InterfaceError> for LibWalletError {
             InterfaceError::PointerError(ref p) => Self {
                 code: 9,
                 message: format!("Pointer error on {}:{:?}", p, v),
+            },
+            InterfaceError::EncryptionError(_) => Self {
+                code: 10,
+                message: format!("{:?}", v),
             },
         }
     }

@@ -769,7 +769,9 @@ struct ByteVector *encrypted_value_as_bytes(const TariEncryptedValue *encrypted_
  * The ```encrypted_value_destroy``` function must be called when finished with a TariEncryptedValue to prevent a
  * memory leak
  */
-TariEncryptedValue *encrypted_value_encrypt(unsigned long long amount,
+TariEncryptedValue *encrypted_value_encrypt(struct TariWallet *wallet,
+                                            const struct ByteVector *commitment_bytes,
+                                            unsigned long long amount,
                                             int *error_out);
 
 /**
@@ -786,7 +788,9 @@ TariEncryptedValue *encrypted_value_encrypt(unsigned long long amount,
  * The ```encrypted_value_destroy``` function must be called when finished with a TariEncryptedValue to prevent a
  * memory leak
  */
-unsigned long long encrypted_value_decrypt(const TariEncryptedValue *encrypted_value,
+unsigned long long encrypted_value_decrypt(struct TariWallet *wallet,
+                                           const struct ByteVector *commitment_bytes,
+                                           const TariEncryptedValue *encrypted_value,
                                            int *error_out);
 
 /**

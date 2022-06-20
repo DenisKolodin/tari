@@ -245,6 +245,7 @@ where
 
         let mut output_manager_handle = handles.expect_handle::<OutputManagerHandle>();
         let key_manager_handle = handles.expect_handle::<KeyManagerHandle<X>>();
+        // let encryption_service_handle = handles.expect_handle::<EncryptionServiceHandle>();
         let transaction_service_handle = handles.expect_handle::<TransactionServiceHandle>();
         let contacts_handle = handles.expect_handle::<ContactsServiceHandle>();
         let dht = handles.expect_handle::<Dht>();
