@@ -33,7 +33,7 @@ use tari_crypto::{
 };
 use tari_script::{inputs, script, ExecutionStack, TariScript};
 
-use super::transaction_components::{EncryptedValue, TransactionInputVersion, TransactionOutputVersion};
+use super::transaction_components::{TransactionInputVersion, TransactionOutputVersion};
 use crate::{
     consensus::{ConsensusEncodingSized, ConsensusManager},
     covenants::Covenant,
@@ -42,6 +42,7 @@ use crate::{
         fee::Fee,
         tari_amount::MicroTari,
         transaction_components::{
+            EncryptedValue,
             KernelBuilder,
             KernelFeatures,
             OutputFeatures,
@@ -153,6 +154,7 @@ impl TestParams {
             rewind_data: RewindData {
                 rewind_blinding_key: PrivateKey::random(&mut OsRng),
                 recovery_byte_key: PrivateKey::random(&mut OsRng),
+                encryption_key: PrivateKey::random(&mut OsRng),
             },
         }
     }
@@ -176,7 +178,11 @@ impl TestParams {
         let updated_features =
             OutputFeatures::features_with_updated_recovery_byte(&commitment, rewind_data, &params.features);
 
-        let encrypted_value = EncryptedValue::todo_encrypt_from(params.value);
+        let encrypted_value = if let Some(rewind_data) = rewind_data {
+            EncryptedValue::encrypt_value(&rewind_data.encryption_key, &commitment, params.value).unwrap()
+        } else {
+            EncryptedValue::default()
+        };
         let metadata_signature = TransactionOutput::create_final_metadata_signature(
             TransactionOutputVersion::get_current_version(),
             params.value,
@@ -337,6 +343,20 @@ pub fn create_unblinded_output(
     value: MicroTari,
 ) -> UnblindedOutput {
     test_params.create_unblinded_output(UtxoTestParams {
+        value,
+        script,
+        features: output_features,
+        ..Default::default()
+    })
+}
+
+pub fn create_unblinded_output_with_rewind_data(
+    script: TariScript,
+    output_features: OutputFeatures,
+    test_params: &TestParams,
+    value: MicroTari,
+) -> UnblindedOutput {
+    test_params.create_unblinded_output_with_rewind_data(UtxoTestParams {
         value,
         script,
         features: output_features,
@@ -663,6 +683,7 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
         .with_offset(test_params_change_and_txn.offset.clone())
         .with_private_nonce(test_params_change_and_txn.nonce.clone())
         .with_change_secret(test_params_change_and_txn.change_spend_key.clone())
+        .with_rewindable_outputs(test_params_change_and_txn.rewind_data.clone())
         .with_change_script(
             script!(Nop),
             inputs!(PublicKey::from_secret_key(
@@ -684,7 +705,7 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
     let mut outputs = Vec::with_capacity(schema.to.len());
     for val in schema.to {
         let test_params = TestParams::new();
-        let utxo = test_params.create_unblinded_output(UtxoTestParams {
+        let utxo = test_params.create_unblinded_output_with_rewind_data(UtxoTestParams {
             value: val,
             features: schema.features.clone(),
             script: schema.script.clone(),
@@ -738,8 +759,13 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
         ..Default::default()
     };
 
-    // TODO: Get it using `something.encrypt_value(change)`
-    let encrypted_value = EncryptedValue::todo_encrypt_from(change);
+    let encrypted_value = EncryptedValue::encrypt_value(
+        &test_params_change_and_txn.rewind_data.encryption_key,
+        &commitment,
+        change,
+    )
+    .unwrap();
+
     let change_metadata_sig = TransactionOutput::create_final_metadata_signature(
         output_version,
         change,
@@ -809,7 +835,6 @@ pub fn create_utxo(
 
     let updated_features = OutputFeatures::features_with_updated_recovery_byte(&commitment, None, features);
 
-    let encrypted_value = EncryptedValue::todo_encrypt_from(value);
     let metadata_sig = TransactionOutput::create_final_metadata_signature(
         TransactionOutputVersion::get_current_version(),
         value,
@@ -818,7 +843,7 @@ pub fn create_utxo(
         &updated_features,
         &offset_keys.k,
         covenant,
-        &encrypted_value,
+        &EncryptedValue::default(),
     )
     .unwrap();
 
@@ -830,7 +855,7 @@ pub fn create_utxo(
         offset_keys.pk,
         metadata_sig,
         covenant.clone(),
-        encrypted_value,
+        EncryptedValue::default(),
     );
     utxo.verify_range_proof(&CryptoFactories::default().range_proof)
         .unwrap();
