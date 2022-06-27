@@ -80,11 +80,11 @@ impl From<Error> for EncryptionError {
 
 impl EncryptedValue {
     pub fn encrypt_value(
-        key: &PrivateKey,
+        encryption_key: &PrivateKey,
         commitment: &Commitment,
         value: MicroTari,
     ) -> Result<EncryptedValue, EncryptionError> {
-        let aead_key = kdf_aead(key, commitment);
+        let aead_key = kdf_aead(encryption_key, commitment);
         // Encrypt the value (with fixed length) using ChaCha20-Poly1305 with a fixed zero nonce
         let aead_payload = Payload {
             msg: &value.as_u64().to_le_bytes(),
@@ -93,16 +93,16 @@ impl EncryptedValue {
         // Included in the public transaction
         let buffer = ChaCha20Poly1305::new(&aead_key).encrypt(&Nonce::default(), aead_payload)?;
         let mut data: [u8; SIZE] = [0; SIZE];
-        data[0..8].copy_from_slice(&buffer);
+        data.copy_from_slice(&buffer);
         Ok(EncryptedValue(data))
     }
 
     pub fn decrypt_value(
-        key: &PrivateKey,
+        encryption_key: &PrivateKey,
         commitment: &Commitment,
         value: &EncryptedValue,
     ) -> Result<MicroTari, EncryptionError> {
-        let aead_key = kdf_aead(key, commitment);
+        let aead_key = kdf_aead(encryption_key, commitment);
         // Authenticate and decrypt the value
         let aead_payload = Payload {
             msg: value.as_bytes(),
@@ -140,7 +140,7 @@ impl ConsensusEncodingSized for EncryptedValue {
 
 impl ConsensusDecoding for EncryptedValue {
     fn consensus_decode<R: Read>(reader: &mut R) -> Result<Self, io::Error> {
-        let data = <[u8; 24]>::consensus_decode(reader)?;
+        let data = <[u8; SIZE]>::consensus_decode(reader)?;
         Ok(Self(data))
     }
 }
@@ -148,8 +148,11 @@ impl ConsensusDecoding for EncryptedValue {
 #[cfg(test)]
 mod test {
     use rand::rngs::OsRng;
-    use tari_common_types::types::{CommitmentFactory, PrivateKey};
+    use rand::thread_rng;
+    use tari_common_types::types::{CommitmentFactory, PrivateKey, PublicKey};
     use tari_crypto::{commitment::HomomorphicCommitmentFactory, keys::SecretKey};
+    use tari_crypto::keys::PublicKey;
+    use tari_script::StackItem::PublicKey;
 
     use super::*;
     use crate::consensus::ToConsensusBytes;
@@ -173,5 +176,15 @@ mod test {
         let value = &[0; 24];
         let encrypted_value = EncryptedValue::consensus_decode(&mut &value[..]).unwrap();
         assert_eq!(encrypted_value, EncryptedValue::default());
+    }
+
+    #[test]
+    fn it_encrypts_and_decrypts_correctly() {
+        let mut rng = thread_rng();
+        let commitment = Commitment::from_public_key(PublicKey::from_secret_key(PrivateKey::random(&mut rng)))
+        let encryption_key = PrivateKey::random(&mut rng);
+        let amount = MicroTari::from(123456);
+        let encrypted_value = EncryptedValue::encrypt_value(&encryption_key, &commitment, amount).unwrap();
+        assert_eq!(amount, EncryptedValue::decrypt_value(&encryption_key, &commitment, &encrypted_value));
     }
 }

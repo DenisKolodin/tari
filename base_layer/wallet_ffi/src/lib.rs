@@ -7846,7 +7846,6 @@ mod test {
             let mut recovery_in_progress = true;
             let recovery_in_progress_ptr = &mut recovery_in_progress as *mut bool;
 
-            let _secret_key_alice = private_key_generate();
             let db_name_alice = CString::new(random::string(8).as_str()).unwrap();
             let db_name_alice_str: *const c_char = CString::into_raw(db_name_alice) as *const c_char;
             let alice_temp_dir = tempdir().unwrap();
@@ -7938,6 +7937,15 @@ mod test {
             byte_vector_destroy(encrypted_value_1_as_bytes);
             byte_vector_destroy(encrypted_value_bytes);
             encrypted_value_destroy(encrypted_value_0);
+
+            string_destroy(db_name_alice_str as *mut c_char);
+            string_destroy(db_path_alice_str as *mut c_char);
+            string_destroy(address_alice_str as *mut c_char);
+            string_destroy(network_str as *mut c_char);
+            transport_config_destroy(transport_config_alice);
+            string_destroy(address_alice_str as *mut c_char);
+            comms_config_destroy(alice_config);
+            wallet_destroy(wallet);
         }
     }
 
@@ -8826,10 +8834,6 @@ mod test {
                 let amount = 100_000;
                 let utxo_temp =
                     create_unblinded_output(script!(Nop), default_features.clone(), &test_params, MicroTari(amount));
-                // let encrypted_value_1 = encrypted_value_encrypt(wallet_ptr, amount, error_ptr);
-                // let decrypted = encrypted_value_decrypt(wallet_ptr, encrypted_value_1, error_ptr);
-                // encrypted_value_destroy(encrypted_value_1);
-                // assert_eq!(decrypted, amount);
                 if utxo_temp.features.recovery_byte != default_features.recovery_byte {
                     utxo_1 = utxo_temp;
                     break;

@@ -179,6 +179,7 @@ where
             OutputManagerKeyManagerBranch::RecoveryByte,
             OutputManagerKeyManagerBranch::RecoveryBlinding,
             OutputManagerKeyManagerBranch::ContractIssuer,
+            OutputManagerKeyManagerBranch::ValueEncryption,
         ];
         for branch in BRANCHES {
             key_manager.add_new_branch(branch.get_branch_key()).await?;
