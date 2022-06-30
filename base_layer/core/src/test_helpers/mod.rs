@@ -79,8 +79,7 @@ pub fn create_block(rules: &ConsensusManager, prev_block: &Block, spec: BlockSpe
         )
     });
 
-    let factories = CryptoFactories::default();
-    let (coinbase, coinbase_output) = CoinbaseBuilder::new(factories)
+    let (coinbase, coinbase_output) = CoinbaseBuilder::new(CryptoFactories::default())
         .with_block_height(header.height)
         .with_fees(0.into())
         .with_nonce(0.into())

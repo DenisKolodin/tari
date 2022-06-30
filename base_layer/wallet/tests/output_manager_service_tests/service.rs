@@ -2157,11 +2157,7 @@ async fn scan_for_recovery_test() {
 
         let encryption_key = oms
             .key_manager_handler
-            .get_key_at_index(
-                OutputManagerKeyManagerBranch::ValueEncryption.get_branch_key(),
-                // TODO: Index?
-                0,
-            )
+            .get_key_at_index(OutputManagerKeyManagerBranch::ValueEncryption.get_branch_key(), 0)
             .await
             .unwrap();
         let encrypted_value = EncryptedValue::encrypt_value(&encryption_key, &commitment, amount.into()).unwrap();

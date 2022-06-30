@@ -1198,7 +1198,7 @@ where
         tx_id: TxId,
         amount: MicroTari,
         utxo_selection: UtxoSelectionCriteria,
-        output_features: OutputFeatures,
+        mut output_features: OutputFeatures,
         fee_per_gram: MicroTari,
         lock_height: Option<u64>,
         message: String,
@@ -1245,10 +1245,7 @@ where
 
         let (spending_key, script_private_key) = self.get_spend_and_script_keys().await?;
         let recovery_byte = self.calculate_recovery_byte(spending_key.clone(), amount.as_u64(), true)?;
-        let output_features = OutputFeatures {
-            recovery_byte,
-            ..Default::default()
-        };
+        output_features.set_recovery_byte(recovery_byte);
         let commitment = self
             .resources
             .factories

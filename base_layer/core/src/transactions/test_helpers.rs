@@ -683,7 +683,6 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
         .with_offset(test_params_change_and_txn.offset.clone())
         .with_private_nonce(test_params_change_and_txn.nonce.clone())
         .with_change_secret(test_params_change_and_txn.change_spend_key.clone())
-        .with_rewindable_outputs(test_params_change_and_txn.rewind_data.clone())
         .with_change_script(
             script!(Nop),
             inputs!(PublicKey::from_secret_key(
@@ -705,7 +704,7 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
     let mut outputs = Vec::with_capacity(schema.to.len());
     for val in schema.to {
         let test_params = TestParams::new();
-        let utxo = test_params.create_unblinded_output_with_rewind_data(UtxoTestParams {
+        let utxo = test_params.create_unblinded_output(UtxoTestParams {
             value: val,
             features: schema.features.clone(),
             script: schema.script.clone(),
@@ -759,12 +758,7 @@ pub fn create_stx_protocol(schema: TransactionSchema) -> (SenderTransactionProto
         ..Default::default()
     };
 
-    let encrypted_value = EncryptedValue::encrypt_value(
-        &test_params_change_and_txn.rewind_data.encryption_key,
-        &commitment,
-        change,
-    )
-    .unwrap();
+    let encrypted_value = EncryptedValue::default();
 
     let change_metadata_sig = TransactionOutput::create_final_metadata_signature(
         output_version,
